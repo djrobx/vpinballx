@@ -25,7 +25,7 @@ BOOL CALLBACK DSEnumCallBack(LPGUID guid, LPCSTR desc, LPCSTR mod, LPVOID list);
 
 enum SoundOutTypes : char { SNDOUT_TABLE = 0, SNDOUT_BACKGLASS = 1 };
 enum SoundConfigTypes : int { SNDCFG_SND3D2CH = 0, SNDCFG_SND3DALLREAR = 1, SNDCFG_SND3DFRONTISREAR = 2, 
-	                          SNDCFG_SND3DFRONTISFRONT = 3, SNDCFG_SND3D6CH = 4};
+                              SNDCFG_SND3DFRONTISFRONT = 3, SNDCFG_SND3D6CH = 4};
 
 // Surround modes
 // ==============
@@ -51,7 +51,7 @@ class PinSoundCopy
 public:
 	PinSoundCopy(class PinSound *pOriginal);
 
-	void Play(float volume, float randompitch, int pitch, float pan, float fade, const int flags, bool restart);
+	void Play(const float volume, const float randompitch, const int pitch, const float pan, const float front_rear_fade, const int flags, const bool restart);
 	HRESULT Get3DBuffer();
 
 	LPDIRECTSOUNDBUFFER m_pDSBuffer;
@@ -73,7 +73,6 @@ public:
 
    char *m_pdata; // Copy of the buffer data so we can save it out
    WAVEFORMATEX m_wfx;
-  // pps->m_pDSBuffer->GetFormat(&wfx, sizeof(wfx), NULL);
 
    int m_cdata;
    char m_iOutputTarget;
@@ -95,7 +94,7 @@ public:
    ~PinDirectSound();
 
    void InitDirectSound(HWND hwnd, bool IsBackglass);
-   static float PanTo3D(float input);
+   static float PanTo3D(const float input);
 
    PinSound *LoadWaveFile(TCHAR* strFileName);
    HRESULT CreateStaticBuffer(TCHAR* strFileName, PinSound *pps);

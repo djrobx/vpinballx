@@ -14,7 +14,7 @@ PinSound::PinSound() : PinSoundCopy(this)
 
 PinSound::~PinSound()
 {
-	UnInitialize();
+   UnInitialize();
 
    if (m_pdata)
    {
@@ -385,7 +385,7 @@ HRESULT PinDirectSound::CreateDirectFromNative(PinSound *pps)
 // linear positions, so we'll use that and reverse it.   Also multiplying by 3 since that seems to be the
 // the total distance necessary to fully pan away from one side at the center of the room.
 
-float PinDirectSound::PanTo3D(float input)
+float PinDirectSound::PanTo3D(const float input)
 {
 	if (input < 0.0f)
 	{
@@ -393,7 +393,7 @@ float PinDirectSound::PanTo3D(float input)
 	}
 	else
 	{
-		return pow(min(input, 1.0f), 1.0f / 10.0f)*3.0f;
+		return pow(min(input, 1.0f), 1.0f / 10.0f) * 3.0f;
 	}
 }
 
@@ -413,7 +413,7 @@ PinSoundCopy::PinSoundCopy(class PinSound *pOriginal)
 	}
 }
 
-void PinSoundCopy::Play(float volume, float randompitch, int pitch, float pan, float fade, const int flags, bool restart)
+void PinSoundCopy::Play(const float volume, const float randompitch, const int pitch, const float pan, const float front_rear_fade, const int flags, const bool restart)
 {
 	const float totalvolume = max(min(volume, 100.0f), 0.0f);
 	const int decibelvolume = (totalvolume == 0.0f) ? DSBVOLUME_MIN : (int)(logf(totalvolume)*(float)(1000.0 / log(10.0)) - 2000.0f);
@@ -443,13 +443,13 @@ void PinSoundCopy::Play(float volume, float randompitch, int pitch, float pan, f
 		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, PinDirectSound::PanTo3D(1.0f), DS3D_IMMEDIATE);
 		break;
 	case SNDCFG_SND3DFRONTISFRONT:
-		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, PinDirectSound::PanTo3D(fade), DS3D_IMMEDIATE);
+		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, PinDirectSound::PanTo3D(front_rear_fade), DS3D_IMMEDIATE);
 		break;
 	case SNDCFG_SND3DFRONTISREAR:
-		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, -PinDirectSound::PanTo3D(fade), DS3D_IMMEDIATE);
+		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, -PinDirectSound::PanTo3D(front_rear_fade), DS3D_IMMEDIATE);
 		break;
 	case SNDCFG_SND3D6CH:
-		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, -((PinDirectSound::PanTo3D(fade) + 3.0f) / 2.0f), DS3D_IMMEDIATE);
+		m_pDS3DBuffer->SetPosition(PinDirectSound::PanTo3D(pan), 0.0f, -((PinDirectSound::PanTo3D(front_rear_fade) + 3.0f) / 2.0f), DS3D_IMMEDIATE);
 		break;
 	default:  // SNDCFG_SND3D2CH
 		if (pan != 0.f)

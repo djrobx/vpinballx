@@ -21,7 +21,7 @@ private:
     void ReImportFrom();
     void Export();
     void SoundToBG();
-	void SoundPosition();
+    void SoundPosition();
 
     void DeleteSound();
     void LoadPosition();
@@ -29,7 +29,7 @@ private:
 
     HWND hSoundList;
     char m_filename[MAX_PATH];
-	char m_initDir[MAX_PATH];
+    char m_initDir[MAX_PATH];
 };
 
 class SoundPositionDialog : public CDialog
@@ -60,8 +60,8 @@ private:
 	void GetDialogValues();
 	void ReadValuesFromSliders();
 	void TestSound();
-	int SliderToValue(int Slider);
-	int ValueToSlider(int Value);
+	int SliderToValue(const int Slider);
+	int ValueToSlider(const int Value);
 };
 
 #endif

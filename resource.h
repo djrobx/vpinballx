@@ -1112,9 +1112,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        631
+#define _APS_NEXT_RESOURCE_VALUE        630
 #define _APS_NEXT_COMMAND_VALUE         4020
-#define _APS_NEXT_CONTROL_VALUE         814
+#define _APS_NEXT_CONTROL_VALUE         816
 #define _APS_NEXT_SYMED_VALUE           188
 #endif
 #endif

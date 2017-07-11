@@ -68,9 +68,9 @@ STDMETHODIMP ScriptGlobalTable::Nudge(float Angle, float Force)
    return S_OK;
 }
 
-STDMETHODIMP ScriptGlobalTable::PlaySound(BSTR bstr, long LoopCount, float volume, float pan, float randompitch, long pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float fade)
+STDMETHODIMP ScriptGlobalTable::PlaySound(BSTR bstr, long LoopCount, float volume, float pan, float randompitch, long pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float front_rear_fade)
 {
-   if (g_pplayer && g_pplayer->m_fPlaySound) m_pt->PlaySound(bstr, LoopCount, volume, pan, randompitch, pitch, usesame, restart, fade);
+   if (g_pplayer && g_pplayer->m_fPlaySound) m_pt->PlaySound(bstr, LoopCount, volume, pan, randompitch, pitch, usesame, restart, front_rear_fade);
 
    return S_OK;
 }
@@ -2330,16 +2330,6 @@ void PinTable::SetDirtyDraw()
    ::InvalidateRect(m_hwnd, NULL, fFalse);
 }
 
-
-/*#include <cmath>
-
-// we want: exp( -1.0 * coeff) == fric
-inline float frictionToCoeff(double fric)
-{
-return (float)(-std::log(fric));
-}*/
-
-
 void PinTable::Play(bool _cameraMode)
 {
    if (g_pplayer)
@@ -3088,12 +3078,12 @@ HRESULT PinTable::SaveSoundToStream(PinSound *pps, IStream *pstm)
 }
 
 
-HRESULT PinTable::LoadSoundFromStream(IStream *pstm, int LoadFileVersion)
+HRESULT PinTable::LoadSoundFromStream(IStream *pstm, const int LoadFileVersion)
 {
    int len;
    ULONG read = 0;
    HRESULT hr = S_OK;
- 
+
    if (FAILED(hr = pstm->Read(&len, sizeof(len), &read)))
       return hr;
 
@@ -3685,7 +3675,7 @@ HRESULT PinTable::LoadGameFromStorage(IStorage *pstgRoot)
          int csounds = 0;
          int ctextures = 0;
          int cfonts = 0;
-		 int ccollection = 0;
+         int ccollection = 0;
 
          if (SUCCEEDED(hr = pstgData->OpenStream(L"Version", NULL, STGM_DIRECT | STGM_READ | STGM_SHARE_EXCLUSIVE, 0, &pstmVersion)))
          {
@@ -4551,7 +4541,7 @@ bool PinTable::ExportSound(HWND hwndListView, PinSound *pps, char *szfilename)
    MMCKINFO pck;
    ZeroMemory(&mmio, sizeof(mmio));
    ZeroMemory(&pck, sizeof(pck));
-  
+
    HMMIO hmmio = mmioOpen(szfilename, &mmio, MMIO_ALLOCBUF | MMIO_CREATE | MMIO_EXCLUSIVE | MMIO_READWRITE);
 
    if (hmmio != NULL)
@@ -4659,7 +4649,7 @@ int PinTable::AddListSound(HWND hwndListView, PinSound *pps)
    lvitem.lParam = (size_t)pps;
 
    const int index = ListView_InsertItem(hwndListView, &lvitem);
- 
+
    ListView_SetItemText(hwndListView, index, 1, pps->m_szPath);
 
    switch (pps->m_iOutputTarget)
@@ -7709,7 +7699,7 @@ HRESULT PinTable::StopSound(BSTR Sound)
    return S_OK;
 }
 
-STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float pan, float randompitch, int pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float fade)
+STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float pan, float randompitch, int pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float front_rear_fade)
 {
    MAKE_ANSIPTR_FROMWIDE(szName, bstr);
    CharLowerBuff(szName, lstrlen(szName));
@@ -7734,17 +7724,17 @@ STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float p
    }
 
    ClearOldSounds();
-   PinSound *pps = m_vsound.ElementAt(i);
+   PinSound * const pps = m_vsound.ElementAt(i);
 
-	volume += (float)pps->m_iVolume / 100.0f;
-	pan += (float)pps->m_iBalance / 100.0f;
-	fade += (float)pps->m_iFade / 100.0f;
+   volume += (float)pps->m_iVolume / 100.0f;
+   pan += (float)pps->m_iBalance / 100.0f;
+   front_rear_fade += (float)pps->m_iFade / 100.0f;
    
    const int flags = (loopcount == -1) ? DSBPLAY_LOOPING : 0;
    // 10 volume = -10Db
 
-   LPDIRECTSOUNDBUFFER pdsb = pps->m_pDSBuffer;
-   PinDirectSound *pDS = pps->m_pPinDirectSound;
+   const LPDIRECTSOUNDBUFFER pdsb = pps->m_pDSBuffer;
+   //PinDirectSound *pDS = pps->m_pPinDirectSound;
    PinSoundCopy * ppsc = NULL;
    bool foundsame = false;
    if (usesame)
@@ -7770,9 +7760,9 @@ STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float p
 
    if (ppsc->m_pDSBuffer)
    {
-	  ppsc->Play(volume * m_TableSoundVolume* ((float)g_pplayer->m_SoundVolume), randompitch, pitch, pan, fade, flags, restart);
+	  ppsc->Play(volume * m_TableSoundVolume* ((float)g_pplayer->m_SoundVolume), randompitch, pitch, pan, front_rear_fade, flags, !!restart);
       if (!foundsame)
-      {  
+      {
          m_voldsound.AddElement(ppsc);
       }
    }
@@ -7780,13 +7770,11 @@ STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float p
    {
       delete ppsc;
 
-	  pps->Play(volume * m_TableSoundVolume * ((float)g_pplayer->m_SoundVolume), randompitch, pitch, pan, fade, flags, restart);
+	  pps->Play(volume * m_TableSoundVolume * ((float)g_pplayer->m_SoundVolume), randompitch, pitch, pan, front_rear_fade, flags, !!restart);
    }
 
    return S_OK;
 }
-
-
 
 
 Texture *PinTable::GetImage(char * const szName) const

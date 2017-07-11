@@ -35,8 +35,8 @@ void SoundDialog::OnClose()
 
 long GetSystemDPI()
 {
-	HDC dc = GetDC(nullptr);
-	SIZE ret = { GetDeviceCaps(dc, LOGPIXELSX), GetDeviceCaps(dc, LOGPIXELSY) };
+	const HDC dc = GetDC(nullptr);
+	const SIZE ret = { GetDeviceCaps(dc, LOGPIXELSX), GetDeviceCaps(dc, LOGPIXELSY) };
 	ReleaseDC(nullptr, dc);
 	return ret.cx;
 }
@@ -66,14 +66,14 @@ BOOL SoundDialog::OnInitDialog()
 	lvcol.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_FMT; 
 	LocalString ls( IDS_NAME );
     lvcol.pszText = ls.m_szbuffer;// = "Name";
-	lvcol.cx = DPIValue(150);
+    lvcol.cx = DPIValue(150);
     ListView_InsertColumn( hSoundList, 0, &lvcol );
 
     LocalString ls2( IDS_IMPORTPATH );
     lvcol.pszText = ls2.m_szbuffer; // = "Import Path";
     lvcol.cx = DPIValue(200);
     ListView_InsertColumn( hSoundList, 1, &lvcol );
-   
+
 	lvcol.pszText = "Output";
 	lvcol.cx = DPIValue(80);
 	ListView_InsertColumn(hSoundList, 2, &lvcol);
@@ -172,7 +172,7 @@ BOOL SoundDialog::OnCommand( WPARAM wParam, LPARAM lParam )
         case IDC_REIMPORTFROM: ReImportFrom(); break;
         case IDC_SNDEXPORT: Export(); break;
         case IDC_SNDTOBG: SoundToBG(); break;
-		case IDC_SNDPOSITION: SoundPosition(); break;
+        case IDC_SNDPOSITION: SoundPosition(); break;
         case IDC_DELETE_SOUND: DeleteSound(); break;
         case IDC_OK: SavePosition(); CDialog::OnOK(); break;
         case IDC_PLAY:
@@ -483,9 +483,9 @@ void SoundDialog::SoundToBG()
             lvitem.iItem = sel;
             lvitem.iSubItem = 0;
             ListView_GetItem( hSoundList, &lvitem );
-            PinSound *pps = (PinSound *)lvitem.lParam;
+            PinSound * const pps = (PinSound *)lvitem.lParam;
 
-			pps->m_iOutputTarget = (pps->m_iOutputTarget != SNDOUT_BACKGLASS) ? SNDOUT_BACKGLASS : SNDOUT_TABLE;
+            pps->m_iOutputTarget = (pps->m_iOutputTarget != SNDOUT_BACKGLASS) ? SNDOUT_BACKGLASS : SNDOUT_TABLE;
 
             char pathName[MAX_PATH];
             memset( pathName, 0, MAX_PATH );
@@ -527,7 +527,7 @@ void SoundDialog::SoundPosition()
 				lvitem.iItem = sel;
 				lvitem.iSubItem = 0;
 				ListView_GetItem(hSoundList, &lvitem);
-				PinSound *pps = (PinSound *)lvitem.lParam;
+				pps = (PinSound *)lvitem.lParam;
 				pps->m_iOutputTarget = spd.m_cOutputTarget;
 				pps->m_iBalance = spd.m_iBalance;
 				pps->m_iFade = spd.m_iFade;
@@ -563,7 +563,7 @@ void SoundDialog::DeleteSound()
                 lvitem.iItem = sel;
                 lvitem.iSubItem = 0;
                 ListView_GetItem( hSoundList, &lvitem );
-                PinSound *pps = (PinSound *)lvitem.lParam;
+                PinSound * const pps = (PinSound *)lvitem.lParam;
                 pt->RemoveSound( pps );
                 ListView_DeleteItem( hSoundList, sel );
 
@@ -597,8 +597,6 @@ void SoundDialog::SavePosition()
     (void)SetRegValue( "Editor", "SoundMngPosX", REG_DWORD, &rect.left, 4 );
     (void)SetRegValue( "Editor", "SoundMngPosY", REG_DWORD, &rect.top, 4 );
 }
-
-
 
 
 SoundPositionDialog::SoundPositionDialog(PinSound *pps) : CDialog(IDD_SOUND_POSITION_DIALOG)
@@ -665,8 +663,8 @@ void SoundPositionDialog::SetSliderValues()
 
 INT_PTR SoundPositionDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	HWND hwndDlg = GetHwnd();
-	CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
+	//const HWND hwndDlg = GetHwnd();
+	//CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
 
 	switch (uMsg)
 	{
@@ -700,13 +698,9 @@ INT_PTR SoundPositionDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void SoundPositionDialog::ReadTextValue(int item, int &oValue)
 {
-	char textBuf[32];
-	CString textStr;
+	const CString textStr = GetDlgItemText(item);
 	float fval;
-	int ret;
-
-	textStr = GetDlgItemText(item);
-	ret = sscanf_s(textStr.c_str(), "%f", &fval);
+	const int ret = sscanf_s(textStr.c_str(), "%f", &fval);
 	if (ret == 1 && fval >= -1.0f && fval <= 1.0f)
 		oValue = (int)(fval * 100.0f);
 }
@@ -722,7 +716,7 @@ void SoundPositionDialog::SetTextValue(int ctl, int val)
 {
 	char textBuf[32];
 	sprintf_s(textBuf, "%.03f", (float)val / 100.0f);
-	CString textStr(textBuf);
+	const CString textStr(textBuf);
 	SetDlgItemText(ctl, textStr);
 }
 
@@ -765,16 +759,16 @@ BOOL SoundPositionDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 void SoundPositionDialog::TestSound()
 {
 	// Hold the actual output target temporarily and reinitialize.  It could be reset if dialog is canceled.
-	int iOutputTargetTmp = m_pps->m_iOutputTarget;
+	const int iOutputTargetTmp = m_pps->m_iOutputTarget;
 	GetDialogValues();
 	m_pps->m_iOutputTarget = m_cOutputTarget;
 	m_pps->ReInitialize();
 
-	float volume = (float)m_iVolume / 100.0f;
-	float pan = (float)m_iBalance / 100.0f;
-	float fade = (float)m_iFade / 100.0f;
+	const float volume = (float)m_iVolume / 100.0f;
+	const float pan = (float)m_iBalance / 100.0f;
+	const float front_rear_fade = (float)m_iFade / 100.0f;
 
-	m_pps->Play((1.0f + volume) * 100.0f, 0.0f, 0, pan, fade, 0, false);
+	m_pps->Play((1.0f + volume) * 100.0f, 0.0f, 0, pan, front_rear_fade, 0, false);
 	m_pps->m_iOutputTarget = iOutputTargetTmp;
 }
 
@@ -788,12 +782,12 @@ void SoundPositionDialog::OnCancel()
 	CDialog::OnCancel();
 }
 
-int SoundPositionDialog::SliderToValue(int Slider)
+int SoundPositionDialog::SliderToValue(const int Slider)
 {
 	return (int)(pow((float)Slider / 100.0f, 10.0f)*100.0f);
 }
 
-int SoundPositionDialog::ValueToSlider(int Value)
+int SoundPositionDialog::ValueToSlider(const int Value)
 {
-	return (int)(pow((float)Value / 100.0f, 1.0f / 10.0f)*100.0f);
+	return (int)(pow((float)Value / 100.0f, (float)(1.0/10.0))*100.0f);
 }
