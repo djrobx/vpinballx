@@ -187,7 +187,7 @@ void HitTarget::SetDefaults(bool fromMouseClick)
    SetDefaultPhysics(fromMouseClick);
 
    m_d.m_fCollidable = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "Collidable", true) : true;
-   m_d.m_fDisableLighting = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "DisableLighting", false) : false;
+   m_d.m_fDisableLighting = dequantizeUnsigned<8>(fromMouseClick ? GetRegIntWithDefault(strKeyName, "DisableLighting", 0) : 0); // stored as uchar for backward compatibility
    m_d.m_fReflectionEnabled = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "ReflectionEnabled", true) : true;
    m_d.m_RaiseDelay = fromMouseClick ? GetRegIntWithDefault(strKeyName, "RaiseDelay", 100) : 100;
 
@@ -223,7 +223,8 @@ void HitTarget::WriteRegDefaults()
    SetRegValue(strKeyName, "TargetType", REG_DWORD, &m_d.m_targetType, 4);
 
    SetRegValueBool(strKeyName, "Collidable", m_d.m_fCollidable);
-   SetRegValueBool(strKeyName, "DisableLighting", m_d.m_fDisableLighting);
+   const int tmp = quantizeUnsigned<8>(clamp(m_d.m_fDisableLighting, 0.f, 1.f));
+   SetRegValueInt(strKeyName, "DisableLighting", (tmp == 1) ? 0 : tmp); // backwards compatible saving
    SetRegValueBool(strKeyName, "ReflectionEnabled", m_d.m_fReflectionEnabled);
    SetRegValueInt(strKeyName, "RaiseDelay", m_d.m_RaiseDelay);
 
@@ -683,7 +684,7 @@ void HitTarget::RenderObject(RenderDevice *pd3dDevice)
    pd3dDevice->SetRenderState(RenderDevice::CULLMODE, D3DCULL_CCW);
 #endif
 
-   if (m_d.m_fDisableLighting)
+   if (m_d.m_fDisableLighting != 0.f)
       pd3dDevice->basicShader->SetDisableLighting(m_d.m_fDisableLighting);
 
    Texture * const pin = m_ptable->GetImage(m_d.m_szImage);
@@ -717,8 +718,8 @@ void HitTarget::RenderObject(RenderDevice *pd3dDevice)
 
    pd3dDevice->SetTextureAddressMode(0, RenderDevice::TEX_CLAMP);
    //g_pplayer->m_pin3d.DisableAlphaBlend(); //!! not necessary anymore
-   if (m_d.m_fDisableLighting)
-      pd3dDevice->basicShader->SetDisableLighting(false);
+   if (m_d.m_fDisableLighting != 0.f)
+      pd3dDevice->basicShader->SetDisableLighting(0.f);
 }
 
 void HitTarget::UpdateTarget(RenderDevice *pd3dDevice)
@@ -886,7 +887,8 @@ HRESULT HitTarget::SaveData(IStream *pstm, HCRYPTHASH hcrypthash, HCRYPTKEY hcry
    bw.WriteFloat(FID(RFCT), m_d.m_friction);
    bw.WriteFloat(FID(RSCT), m_d.m_scatter);
    bw.WriteBool(FID(CLDRP), m_d.m_fCollidable);
-   bw.WriteBool(FID(DILI), m_d.m_fDisableLighting);
+   const int tmp = quantizeUnsigned<8>(clamp(m_d.m_fDisableLighting, 0.f, 1.f));
+   bw.WriteInt(FID(DILI), (tmp == 1) ? 0 : tmp); // backwards compatible saving
    bw.WriteBool(FID(REEN), m_d.m_fReflectionEnabled);
    bw.WriteFloat(FID(PIDB), m_d.m_depthBias);
    bw.WriteBool(FID(ISDR), m_d.m_isDropped);
@@ -1001,7 +1003,9 @@ BOOL HitTarget::LoadToken(int id, BiffReader *pbr)
    }
    else if (id == FID(DILI))
    {
-      pbr->GetBool(&m_d.m_fDisableLighting);
+      int tmp;
+      pbr->GetInt(&tmp);
+      m_d.m_fDisableLighting = (tmp == 1) ? 1.f : dequantizeUnsigned<8>(tmp); // backwards compatible hacky loading!
    }
    else if (id == FID(PIDB))
    {
@@ -1412,7 +1416,7 @@ STDMETHODIMP HitTarget::put_Collidable(VARIANT_BOOL newVal)
 
 STDMETHODIMP HitTarget::get_DisableLighting(VARIANT_BOOL *pVal)
 {
-   *pVal = (VARIANT_BOOL)FTOVB(m_d.m_fDisableLighting);
+   *pVal = (VARIANT_BOOL)FTOVB(m_d.m_fDisableLighting != 0.f);
 
    return S_OK;
 }
@@ -1421,7 +1425,25 @@ STDMETHODIMP HitTarget::put_DisableLighting(VARIANT_BOOL newVal)
 {
    STARTUNDO
 
-   m_d.m_fDisableLighting = VBTOF(newVal);
+   m_d.m_fDisableLighting = VBTOF(newVal) ? 1.f : 0;
+
+   STOPUNDO
+
+   return S_OK;
+}
+
+STDMETHODIMP HitTarget::get_BlendDisableLighting(float *pVal)
+{
+   *pVal = m_d.m_fDisableLighting;
+
+   return S_OK;
+}
+
+STDMETHODIMP HitTarget::put_BlendDisableLighting(float newVal)
+{
+   STARTUNDO
+
+   m_d.m_fDisableLighting = newVal;
 
    STOPUNDO
 

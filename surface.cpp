@@ -116,7 +116,8 @@ void Surface::WriteRegDefaults()
    SetRegValueBool(strKeyName, "Visible", m_d.m_fTopBottomVisible);
    SetRegValueBool(strKeyName, "SideVisible", m_d.m_fSideVisible);
    SetRegValueBool(strKeyName, "Collidable", m_d.m_fCollidable);
-   SetRegValueBool(strKeyName, "DisableLighting", m_d.m_fDisableLighting);
+   const int tmp = quantizeUnsigned<8>(clamp(m_d.m_fDisableLighting, 0.f, 1.f));
+   SetRegValueInt(strKeyName, "DisableLighting", (tmp == 1) ? 0 : tmp); // backwards compatible saving
    SetRegValueBool(strKeyName, "ReflectionEnabled", m_d.m_fReflectionEnabled);
 }
 
@@ -248,7 +249,7 @@ void Surface::SetDefaults(bool fromMouseClick)
    m_d.m_fTopBottomVisible = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "Visible", true) : true;
    m_d.m_fSideVisible = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "SideVisible", true) : true;
    m_d.m_fCollidable = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "Collidable", true) : true;
-   m_d.m_fDisableLighting = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "DisableLighting", false) : false;
+   m_d.m_fDisableLighting = dequantizeUnsigned<8>(fromMouseClick ? GetRegIntWithDefault(strKeyName, "DisableLighting", 0) : 0); // stored as uchar for backward compatibility
    m_d.m_fReflectionEnabled = fromMouseClick ? GetRegBoolWithDefault(strKeyName, "ReflectionEnabled", true) : true;
 }
 
@@ -1047,7 +1048,7 @@ void Surface::RenderWallsAtHeight(RenderDevice* pd3dDevice, const bool fDrop)
    if (m_ptable->m_fReflectionEnabled && (/*m_d.m_heightbottom < 0.0f ||*/ m_d.m_heighttop < 0.0f))
       return;
 
-   if (m_d.m_fDisableLighting && (m_d.m_fSideVisible || m_d.m_fTopBottomVisible))
+   if ((m_d.m_fDisableLighting != 0.f) && (m_d.m_fSideVisible || m_d.m_fTopBottomVisible))
       pd3dDevice->basicShader->SetDisableLighting(m_d.m_fDisableLighting);
 
    // render side
@@ -1134,8 +1135,8 @@ void Surface::RenderWallsAtHeight(RenderDevice* pd3dDevice, const bool fDrop)
    // reset render states
    //g_pplayer->m_pin3d.DisableAlphaBlend(); //!!  not necessary anymore
    //pd3dDevice->SetRenderState(RenderDevice::CULLMODE, D3DCULL_CCW);
-   if (m_d.m_fDisableLighting && (m_d.m_fSideVisible || m_d.m_fTopBottomVisible))
-      pd3dDevice->basicShader->SetDisableLighting(false);
+   if ((m_d.m_fDisableLighting != 0.f) && (m_d.m_fSideVisible || m_d.m_fTopBottomVisible))
+      pd3dDevice->basicShader->SetDisableLighting(0.f);
 }
 
 void Surface::AddPoint(int x, int y, const bool smooth)
@@ -1269,7 +1270,8 @@ HRESULT Surface::SaveData(IStream *pstm, HCRYPTHASH hcrypthash, HCRYPTKEY hcrypt
    bw.WriteBool(FID(VSBL), m_d.m_fTopBottomVisible);
    bw.WriteBool(FID(SLGA), m_d.m_fSlingshotAnimation);
    bw.WriteBool(FID(SVBL), m_d.m_fSideVisible);
-   bw.WriteBool(FID(DILI), m_d.m_fDisableLighting);
+   const int tmp = quantizeUnsigned<8>(clamp(m_d.m_fDisableLighting, 0.f, 1.f));
+   bw.WriteInt(FID(DILI), (tmp == 1) ? 0 : tmp); // backwards compatible saving
    bw.WriteBool(FID(REEN), m_d.m_fReflectionEnabled);
    bw.WriteString( FID( MAPH ), m_d.m_szPhysicsMaterial );
    bw.WriteBool( FID( OVPH ), m_d.m_fOverwritePhysics );
@@ -1492,7 +1494,7 @@ BOOL Surface::LoadToken(int id, BiffReader *pbr)
    }
    else if ( id == FID( OVPH ) )
    {
-       pbr->GetBool( &m_d.m_fOverwritePhysics );
+      pbr->GetBool(&m_d.m_fOverwritePhysics);
    }
    else if (id == FID(SLGA))
    {
@@ -1500,7 +1502,9 @@ BOOL Surface::LoadToken(int id, BiffReader *pbr)
    }
    else if (id == FID(DILI))
    {
-      pbr->GetBool(&m_d.m_fDisableLighting);
+      int tmp;
+      pbr->GetInt(&tmp);
+      m_d.m_fDisableLighting = (tmp == 1) ? 1.f : dequantizeUnsigned<8>(tmp); // backwards compatible hacky loading!
    }
    else if (id == FID(SVBL))
    {
@@ -2103,7 +2107,7 @@ STDMETHODIMP Surface::put_SlingshotAnimation(VARIANT_BOOL newVal)
 
 STDMETHODIMP Surface::get_DisableLighting(VARIANT_BOOL *pVal)
 {
-   *pVal = (VARIANT_BOOL)FTOVB(m_d.m_fDisableLighting);
+   *pVal = (VARIANT_BOOL)FTOVB(m_d.m_fDisableLighting != 0.f);
 
    return S_OK;
 }
@@ -2112,11 +2116,29 @@ STDMETHODIMP Surface::put_DisableLighting(VARIANT_BOOL newVal)
 {
    STARTUNDO
 
-      m_d.m_fDisableLighting = VBTOF(newVal);
+   m_d.m_fDisableLighting = VBTOF(newVal) ? 1.f : 0;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
+}
+
+STDMETHODIMP Surface::get_BlendDisableLighting(float *pVal)
+{
+   *pVal = m_d.m_fDisableLighting;
+
+   return S_OK;
+}
+
+STDMETHODIMP Surface::put_BlendDisableLighting(float newVal)
+{
+   STARTUNDO
+
+   m_d.m_fDisableLighting = newVal;
+
+   STOPUNDO
+
+   return S_OK;
 }
 
 STDMETHODIMP Surface::get_ReflectionEnabled(VARIANT_BOOL *pVal)

@@ -250,6 +250,10 @@
 #define IDD_ROTATE                      222
 #define IDR_MULTIMENU                   222
 #define IDD_SCALE                       223
+#define IDC_MATERIAL_COLOR              224
+#define IDC_SYSTEM_TIME                 225
+#define IDC_VP_WINDOW_WIDTH             226
+#define IDC_VP_WINDOW_HEIGHT            227
 #define IDD_PROGRESS                    228
 #define IDD_PROPTABLE                   229
 #define IDD_PROPLIGHT                   231
@@ -726,6 +730,8 @@
 #define IDC_DN_LATITUDE                 491
 #define IDC_DISABLE_DWM                 492
 #define IDC_START_VP_FILE_DIALOG        493
+#define IDC_BLEND_DISABLE_LIGHTING      494
+#define IDC_ENABLE_LEGACY_NUDGE         495
 #define IDC_JOYLFLIPCOMBO               501
 #define IDC_JOYRFLIPCOMBO               502
 #define IDC_JOYPLUNGERCOMBO             503

@@ -365,6 +365,11 @@ public:
    float m_nudgeSpring;
    float m_nudgeDamping;
 
+   // legacy/VP9 style keyboard nudging
+   bool m_legacyNudge;
+   float m_legacyNudgeBackX,m_legacyNudgeBackY;
+   int m_legacyNudgeTime;
+
    EnumAssignKeys m_rgKeys[eCKeys]; //Player's key assignments
 
    HWND m_hwndDebugOutput;
@@ -562,7 +567,11 @@ private:
 public:
    void ToggleFPS();
    void InitFPS();
-   void UpdateBasicShaderMatrix( const Matrix3D& objectTrafo = Matrix3D( 1.0f ) );
+   bool ShowFPS();
+   bool RenderStaticOnly();
+   bool RenderAOOnly();
+   unsigned int ProfilingMode();
+   void UpdateBasicShaderMatrix(const Matrix3D& objectTrafo = Matrix3D(1.0f));
    void InitShader();
    void UpdateCameraModeDisplay();
    void UpdateBackdropSettings(const bool up);
@@ -579,8 +588,7 @@ public:
    bool m_fStep;
 #endif
 
-   bool m_fShowFPS;
-   unsigned int m_staticOnly;
+   unsigned int m_fShowFPS;
 
    bool m_scaleFX_DMD;
 

@@ -77,11 +77,11 @@ public:
 
    int  m_FrameAmount;
 
+   float m_fDisableLighting; // was bool, now 0..1
    bool m_use3DMesh;
    bool m_fVisible;
    bool m_DrawTexturesInside;
    bool m_staticRendering;
-   bool m_fDisableLighting;
 
    bool m_fHitEvent;
    bool m_fCollidable;
@@ -211,6 +211,8 @@ public:
    STDMETHOD(put_DepthBias)(/*[in]*/ float newVal);
    STDMETHOD(get_DisableLighting)(/*[out, retval]*/ VARIANT_BOOL *pVal);
    STDMETHOD(put_DisableLighting)(/*[in]*/ VARIANT_BOOL newVal);
+   STDMETHOD(get_BlendDisableLighting)(/*[out, retval]*/ float *pVal);
+   STDMETHOD(put_BlendDisableLighting)(/*[in]*/ float newVal);
    STDMETHOD(get_ReflectionEnabled)(/*[out, retval]*/ VARIANT_BOOL *pVal);
    STDMETHOD(put_ReflectionEnabled)(/*[in]*/ VARIANT_BOOL newVal);
    STDMETHOD( get_PhysicsMaterial )(/*[out, retval]*/ BSTR *pVal);
@@ -272,6 +274,7 @@ public:
    virtual float GetDepth(const Vertex3Ds& viewDir);
    virtual unsigned long long GetMaterialID() { return m_ptable->GetMaterial(m_d.m_szMaterial)->hash(); }
    virtual unsigned long long GetImageID() { return (unsigned long long)(m_ptable->GetImage(m_d.m_szImage)); }
+   virtual ItemTypeEnum HitableGetItemType() { return eItemPrimitive; }
 
    virtual void UpdatePropertyPanes();
    virtual void SetDefaultPhysics(bool fromMouseClick);

@@ -56,13 +56,22 @@ STDMETHODIMP ScriptGlobalTable::EndModal()
 
 STDMETHODIMP ScriptGlobalTable::Nudge(float Angle, float Force)
 {
-   if (g_pplayer)
+   if (g_pplayer && (!g_pplayer->m_legacyNudge || g_pplayer->m_legacyNudgeTime == 0))
    {
       const float sn = sinf(ANGTORAD(Angle));
       const float cs = cosf(ANGTORAD(Angle));
 
-      g_pplayer->m_tableVel.x += sn * Force;
-      g_pplayer->m_tableVel.y += -cs * Force;
+      if(g_pplayer->m_legacyNudge)
+      {
+          g_pplayer->m_legacyNudgeBackX =  sn * Force;
+          g_pplayer->m_legacyNudgeBackY = -cs * Force;
+          g_pplayer->m_legacyNudgeTime = 100;
+      }
+      else
+      {
+          g_pplayer->m_tableVel.x +=  sn * Force;
+          g_pplayer->m_tableVel.y += -cs * Force;
+      }
    }
 
    return S_OK;
@@ -570,21 +579,21 @@ STDMETHODIMP ScriptGlobalTable::get_SystemTime(long *pVal)
 /*STDMETHODIMP ScriptGlobalTable::put_NightDay(int pVal)
 {
 if(g_pplayer)
-g_pplayer->m_globalEmissionScale = (float)newVal/100.0f;
+g_pplayer->m_globalEmissionScale = dequantizeSignedPercent(newVal);
 return S_OK;
 }*/
 
 STDMETHODIMP ScriptGlobalTable::get_NightDay(int *pVal)
 {
    if (g_pplayer)
-      *pVal = (int)(g_pplayer->m_globalEmissionScale*100.0f);
+      *pVal = quantizeSignedPercent(g_pplayer->m_globalEmissionScale);
    return S_OK;
 }
 
 /*STDMETHODIMP ScriptGlobalTable::put_ShowDT(int pVal)
 {
    if(g_pplayer)
-      g_pplayer->m_BG_current_set = (!!newVal) ? 0 : 1;
+      g_pplayer->m_ptable->m_BG_current_set = (!!newVal) ? 0 : 1;
    return S_OK;
 }*/
 
@@ -594,6 +603,33 @@ STDMETHODIMP ScriptGlobalTable::get_ShowDT(VARIANT_BOOL *pVal)
       *pVal = (VARIANT_BOOL)FTOVB(g_pplayer->m_ptable->m_BG_current_set == BG_DESKTOP || g_pplayer->m_ptable->m_BG_current_set == BG_FSS); // DT & FSS
    return S_OK;
 }
+
+STDMETHODIMP ScriptGlobalTable::get_ShowFSS(VARIANT_BOOL *pVal)
+{
+   *pVal = (VARIANT_BOOL)FTOVB(g_pplayer->m_ptable->m_BG_enable_FSS);
+
+   //*pVal = (VARIANT_BOOL)FTOVB(g_pplayer->m_ptable->m_BG_current_set == 2);
+
+   return S_OK;
+}
+
+/*STDMETHODIMP PinTable::put_ShowFSS(VARIANT_BOOL newVal)
+{
+   STARTUNDO
+
+   m_BG_enable_FSS = !!newVal;
+
+   if(m_BG_enable_FSS)
+      m_BG_current_set = FULL_SINGLE_SCREEN;
+   else
+      GetRegInt("Player", "BGSet", (int*)&m_BG_current_set);
+
+   STOPUNDO
+
+   SetDirtyDraw();
+
+   return S_OK;
+}*/
 
 STDMETHODIMP ScriptGlobalTable::MaterialColor(BSTR pVal, OLE_COLOR newVal)
 {
@@ -609,6 +645,20 @@ STDMETHODIMP ScriptGlobalTable::MaterialColor(BSTR pVal, OLE_COLOR newVal)
 	tmp->m_cBase = newVal;
 
 	return S_OK;
+}
+
+STDMETHODIMP ScriptGlobalTable::get_WindowWidth(int *pVal)
+{
+   if (g_pplayer)
+      *pVal = g_pplayer->m_width;
+   return S_OK;
+}
+
+STDMETHODIMP ScriptGlobalTable::get_WindowHeight(int *pVal)
+{
+   if (g_pplayer)
+      *pVal = g_pplayer->m_height;
+   return S_OK;
 }
 
 STDMETHODIMP ScriptGlobalTable::put_DMDWidth(int pVal)
@@ -1312,7 +1362,7 @@ PinTable::PinTable()
    m_globalDifficulty = 0.2f;			// easy by default
    hr = GetRegInt("Player", "GlobalDifficulty", &tmp);
    if (hr == S_OK)
-      m_globalDifficulty = (float)tmp*(float)(1.0 / 100.0);
+      m_globalDifficulty = dequantizeSignedPercent(tmp);
 
    int accel;
    hr = GetRegInt("Player", "PBWEnabled", &accel); // true if electronic accelerometer enabled
@@ -1339,12 +1389,12 @@ PinTable::PinTable()
    m_tblAccelAmpX = 1.5f;
    hr = GetRegInt("Player", "PBWAccelGainX", &tmp);
    if (hr == S_OK)
-      m_tblAccelAmpX = (float)tmp*(float)(1.0 / 100.0);
+      m_tblAccelAmpX = dequantizeSignedPercent(tmp);
 
    m_tblAccelAmpY = 1.5f;
    hr = GetRegInt("Player", "PBWAccelGainY", &tmp);
    if (hr == S_OK)
-      m_tblAccelAmpY = (float)tmp*(float)(1.0 / 100.0);
+      m_tblAccelAmpY = dequantizeSignedPercent(tmp);
 
    m_tblAccelMaxX = JOYRANGEMX;
    hr = GetRegInt("Player", "PBWAccelMaxX", &tmp);
@@ -3497,12 +3547,12 @@ HRESULT PinTable::SaveData(IStream* pstm, HCRYPTHASH hcrypthash, HCRYPTKEY hcryp
    bw.WriteInt(FID(AVSY), m_TableAdaptiveVSync);
 
    bw.WriteInt(FID(BREF), m_useReflectionForBalls);
-   bw.WriteInt(FID(PLST), (int)(m_playfieldReflectionStrength*255.f + 0.5f));
+   bw.WriteInt(FID(PLST), quantizeUnsigned<8>(m_playfieldReflectionStrength));
    bw.WriteInt(FID(BTRA), m_useTrailForBalls);
    bw.WriteBool(FID(BDMO), m_BallDecalMode);
    bw.WriteFloat(FID(BPRS), m_ballPlayfieldReflectionStrength);
    bw.WriteFloat(FID(DBIS), m_defaultBulbIntensityScaleOnBall);
-   bw.WriteInt(FID(BTST), (int)(m_ballTrailStrength*255.f + 0.5f));
+   bw.WriteInt(FID(BTST), quantizeUnsigned<8>(m_ballTrailStrength));
    bw.WriteInt(FID(ARAC), m_userDetailLevel);
    bw.WriteBool(FID(OGAC), m_overwriteGlobalDetailLevel);
    bw.WriteBool(FID(OGDN), m_overwriteGlobalDayNight);
@@ -3526,12 +3576,12 @@ HRESULT PinTable::SaveData(IStream* pstm, HCRYPTHASH hcrypthash, HCRYPTKEY hcryp
          mats[i].cClearcoat = m->m_cClearcoat;
          mats[i].fWrapLighting = m->m_fWrapLighting;
          mats[i].fRoughness = m->m_fRoughness;
-         mats[i].fGlossyImageLerp = 255 - ((unsigned char)(clamp(m->m_fGlossyImageLerp, 0.f, 1.f)*255.f)); // '255 -' to be compatible with previous table versions
+         mats[i].fGlossyImageLerp = 255 - quantizeUnsigned<8>(clamp(m->m_fGlossyImageLerp, 0.f, 1.f)); // '255 -' to be compatible with previous table versions
          mats[i].fEdge = m->m_fEdge;
          mats[i].fOpacity = m->m_fOpacity;
          mats[i].bIsMetal = m->m_bIsMetal;
          mats[i].bOpacityActive_fEdgeAlpha = m->m_bOpacityActive ? 1 : 0;
-         mats[i].bOpacityActive_fEdgeAlpha |= ((unsigned char)(clamp(m->m_fEdgeAlpha, 0.f, 1.f)*127.f)) << 1;
+         mats[i].bOpacityActive_fEdgeAlpha |= quantizeUnsigned<7>(clamp(m->m_fEdgeAlpha, 0.f, 1.f)) << 1;
          mats[i].bUnused2 = 0;
          strcpy_s(mats[i].szName, m->m_szName);
       }
@@ -4366,7 +4416,7 @@ BOOL PinTable::LoadToken(int id, BiffReader *pbr)
    {
       int tmp;
       pbr->GetInt(&tmp);
-	  m_playfieldReflectionStrength = (float)tmp*(float)(1.0 / 255.);
+      m_playfieldReflectionStrength = dequantizeUnsigned<8>(tmp);
    }
    else if (id == FID(BTRA))
    {
@@ -4376,7 +4426,7 @@ BOOL PinTable::LoadToken(int id, BiffReader *pbr)
    {
       int tmp;
       pbr->GetInt(&tmp);
-	  m_ballTrailStrength = (float)tmp*(float)(1.0 / 255.);
+      m_ballTrailStrength = dequantizeUnsigned<8>(tmp);
    }
    else if (id == FID(BPRS))
    {
@@ -4428,7 +4478,7 @@ BOOL PinTable::LoadToken(int id, BiffReader *pbr)
       pbr->GetFloat(&m_globalDifficulty);
       int tmp;
       HRESULT hr = GetRegInt("Player", "GlobalDifficulty", &tmp);
-      if (hr == S_OK) m_globalDifficulty = (float)tmp*(float)(1.0 / 100.0);
+      if (hr == S_OK) m_globalDifficulty = dequantizeSignedPercent(tmp);
    }
    else if (id == FID(CUST))
    {
@@ -4496,12 +4546,12 @@ BOOL PinTable::LoadToken(int id, BiffReader *pbr)
          pmat->m_cClearcoat = mats[i].cClearcoat;
          pmat->m_fWrapLighting = mats[i].fWrapLighting;
          pmat->m_fRoughness = mats[i].fRoughness;
-         pmat->m_fGlossyImageLerp = 1.0f - (float)mats[i].fGlossyImageLerp*(float)(1.0 / 255.0); //!! + rounding offset? //!! '1.0f -' to be compatible with previous table versions
+         pmat->m_fGlossyImageLerp = 1.0f - dequantizeUnsigned<8>(mats[i].fGlossyImageLerp); //!! '1.0f -' to be compatible with previous table versions
          pmat->m_fEdge = mats[i].fEdge;
          pmat->m_fOpacity = mats[i].fOpacity;
          pmat->m_bIsMetal = mats[i].bIsMetal;
          pmat->m_bOpacityActive = !!(mats[i].bOpacityActive_fEdgeAlpha & 1);
-         pmat->m_fEdgeAlpha = (float)(mats[i].bOpacityActive_fEdgeAlpha >> 1)*(float)(1.0 / 127.0); //!! + rounding offset?
+         pmat->m_fEdgeAlpha = dequantizeUnsigned<7>(mats[i].bOpacityActive_fEdgeAlpha >> 1);
          strcpy_s(pmat->m_szName, mats[i].szName);
          m_materials.AddElement(pmat);
       }
@@ -4662,11 +4712,11 @@ int PinTable::AddListSound(HWND hwndListView, PinSound *pps)
 	   break;
    }
    char textBuf[40];
-   sprintf_s(textBuf, "%.03f", (float)pps->m_iBalance / 100.0f);
+   sprintf_s(textBuf, "%.03f", dequantizeSignedPercent(pps->m_iBalance));
    ListView_SetItemText(hwndListView, index, 3, textBuf);
-   sprintf_s(textBuf, "%.03f", (float)pps->m_iFade / 100.0f);
+   sprintf_s(textBuf, "%.03f", dequantizeSignedPercent(pps->m_iFade));
    ListView_SetItemText(hwndListView, index, 4, textBuf);
-   sprintf_s(textBuf, "%.03f", (float)pps->m_iVolume / 100.0f);
+   sprintf_s(textBuf, "%.03f", dequantizeSignedPercent(pps->m_iVolume));
    ListView_SetItemText(hwndListView, index, 5, textBuf);
 
    return index;
@@ -7726,9 +7776,9 @@ STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float p
    ClearOldSounds();
    PinSound * const pps = m_vsound.ElementAt(i);
 
-   volume += (float)pps->m_iVolume / 100.0f;
-   pan += (float)pps->m_iBalance / 100.0f;
-   front_rear_fade += (float)pps->m_iFade / 100.0f;
+   volume += dequantizeSignedPercent(pps->m_iVolume);
+   pan += dequantizeSignedPercent(pps->m_iBalance);
+   front_rear_fade += dequantizeSignedPercent(pps->m_iFade);
    
    const int flags = (loopcount == -1) ? DSBPLAY_LOOPING : 0;
    // 10 volume = -10Db
@@ -9247,7 +9297,7 @@ STDMETHODIMP PinTable::put_LightEmissionScale(float newVal)
 
 STDMETHODIMP PinTable::get_NightDay(int *pVal)
 {
-   *pVal = (int)(m_globalEmissionScale*100.0f);
+   *pVal = quantizeSignedPercent(m_globalEmissionScale);
 
    return S_OK;
 }
@@ -9256,7 +9306,7 @@ STDMETHODIMP PinTable::put_NightDay(int newVal)
 {
    STARTUNDO
 
-   m_globalEmissionScale = (float)newVal / 100.0f;
+   m_globalEmissionScale = dequantizeSignedPercent(newVal);
 
    STOPUNDO
 
@@ -9319,7 +9369,7 @@ STDMETHODIMP PinTable::put_BallReflection(UserDefaultOnOff newVal)
 
 STDMETHODIMP PinTable::get_PlayfieldReflectionStrength(int *pVal)
 {
-   *pVal = (int)(m_playfieldReflectionStrength*100.f+0.5f);
+   *pVal = quantizeSignedPercent(m_playfieldReflectionStrength);
 
    return S_OK;
 }
@@ -9328,7 +9378,7 @@ STDMETHODIMP PinTable::put_PlayfieldReflectionStrength(int newVal)
 {
    STARTUNDO
 
-   m_playfieldReflectionStrength = (float)newVal*(float)(1./100.);
+   m_playfieldReflectionStrength = dequantizeSignedPercent(newVal);
 
    STOPUNDO
 
@@ -9355,7 +9405,7 @@ STDMETHODIMP PinTable::put_BallTrail(UserDefaultOnOff newVal)
 
 STDMETHODIMP PinTable::get_TrailStrength(int *pVal)
 {
-   *pVal = (int)(m_ballTrailStrength*100.f+0.5f);
+   *pVal = quantizeSignedPercent(m_ballTrailStrength);
 
    return S_OK;
 }
@@ -9364,7 +9414,7 @@ STDMETHODIMP PinTable::put_TrailStrength(int newVal)
 {
    STARTUNDO
 
-   m_ballTrailStrength = (float)newVal*(float)(1./100.);
+   m_ballTrailStrength = dequantizeSignedPercent(newVal);
 
    STOPUNDO
 
@@ -9427,7 +9477,7 @@ STDMETHODIMP PinTable::put_BloomStrength(float newVal)
 
 STDMETHODIMP PinTable::get_TableSoundVolume(int *pVal)
 {
-   *pVal = (int)(m_TableSoundVolume*100.0f);
+   *pVal = quantizeSignedPercent(m_TableSoundVolume);
 
    return S_OK;
 }
@@ -9436,7 +9486,7 @@ STDMETHODIMP PinTable::put_TableSoundVolume(int newVal)
 {
    STARTUNDO
 
-   m_TableSoundVolume = (float)newVal / 100.0f;
+   m_TableSoundVolume = dequantizeSignedPercent(newVal);
 
    STOPUNDO
 
@@ -9549,7 +9599,7 @@ STDMETHODIMP PinTable::put_BallDecalMode(VARIANT_BOOL newVal)
 
 STDMETHODIMP PinTable::get_TableMusicVolume(int *pVal)
 {
-   *pVal = (int)(m_TableMusicVolume*100.0f);
+   *pVal = quantizeSignedPercent(m_TableMusicVolume);
 
    return S_OK;
 }
@@ -9558,7 +9608,7 @@ STDMETHODIMP PinTable::put_TableMusicVolume(int newVal)
 {
    STARTUNDO
 
-   m_TableMusicVolume = (float)newVal / 100.0f;
+   m_TableMusicVolume = dequantizeSignedPercent(newVal);
 
    STOPUNDO
 

@@ -25,6 +25,7 @@ public:
    float m_elasticity;
    float m_friction;
    float m_scatter;
+   float m_fDisableLighting; // was bool, now 0..1
    bool m_fDroppable;
    bool m_fFlipbook;           // if enabled, dropped walls are not rendered
    bool m_fDisplayTexture;     // in editor
@@ -33,7 +34,6 @@ public:
    bool m_fCollidable; //wall must be droppable too!
    bool m_fIsBottomSolid; //is the bottom closed (lower side of the 'cube') or not (legacy behavior has bottom open, e.g. balls can drop into walls from below, or leave them if inside walls (if bottom area is large enough of course))
    bool m_fSlingshotAnimation;
-   bool m_fDisableLighting;
    bool m_fTopBottomVisible;
    bool m_fHitEvent;
    bool m_fReflectionEnabled;
@@ -131,6 +131,7 @@ public:
          tex = m_ptable->GetImage(m_d.m_szImage);
       return (unsigned long long)tex;
    }
+   virtual ItemTypeEnum HitableGetItemType() { return eItemSurface; }
    virtual bool IsTransparent();
    virtual void UpdatePropertyPanes();
    virtual void SetDefaultPhysics(bool fromMouseClick);
@@ -223,6 +224,8 @@ public:
    STDMETHOD(put_Collidable)(/*[in]*/ VARIANT_BOOL newVal);
    STDMETHOD(get_DisableLighting)(/*[out, retval]*/ VARIANT_BOOL *pVal);
    STDMETHOD(put_DisableLighting)(/*[in]*/ VARIANT_BOOL newVal);
+   STDMETHOD(get_BlendDisableLighting)(/*[out, retval]*/ float *pVal);
+   STDMETHOD(put_BlendDisableLighting)(/*[in]*/ float newVal);
    STDMETHOD(get_ReflectionEnabled)(/*[out, retval]*/ VARIANT_BOOL *pVal);
    STDMETHOD(put_ReflectionEnabled)(/*[in]*/ VARIANT_BOOL newVal);
 
