@@ -62,21 +62,21 @@ Function vpmKeyDown(ByVal KeyCode)
 	On Error Resume Next
 	vpmKeyDown=True ' Assume we handle the key
 	With Controller
-		If KeyCode=RightFlipperKey Then .Switch(swLRFlip)=True
-		If KeyCode=LeftFlipperKey Then .Switch(swLLFlip)=True
 		Select Case KeyCode
-			Case keyInsertCoin1  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin1'":Playsound SCoin
-			Case keyInsertCoin2  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin2'":Playsound SCoin
-			Case keyInsertCoin3  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin3'":Playsound SCoin
-			Case StartGameKey    .Switch(swStartButton) =True
-			Case keyCPUDiag      .Switch(swCPUDiag)     =True
-			Case keySlamDoorHit  .Switch(swSlamTilt)    =True
+			Case RightFlipperKey .Switch(swLRFlip) = True : vpmKeyDown = False
+			Case LeftFlipperKey  .Switch(swLLFlip) = True : vpmKeyDown = False
+			Case keyInsertCoin1  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin1'" : Playsound SCoin
+			Case keyInsertCoin2  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin2'" : Playsound SCoin
+			Case keyInsertCoin3  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin3'" : Playsound SCoin
+			Case StartGameKey    .Switch(swStartButton) = True
+			Case keyCPUDiag      .Switch(swCPUDiag)     = True
+			Case keySlamDoorHit  .Switch(swSlamTilt)    = True
 			Case keyBangBack     vpmNudge.DoNudge   0,6
 			Case LeftTiltKey     vpmNudge.DoNudge  75,2
 			Case RightTiltKey    vpmNudge.DoNudge 285,2
 			Case CenterTiltKey   vpmNudge.DoNudge   0,2
 			Case keyVPMVolume    vpmVol
-			Case Else            vpmKeyDown=False
+			Case Else            vpmKeyDown = False
 		End Select
 	End With
 	On Error Goto 0
@@ -86,9 +86,9 @@ Function vpmKeyUp(ByVal KeyCode)
 	On Error Resume Next
 	vpmKeyUp=True ' Assume we handle the key
 	With Controller
-		If KeyCode=RightFlipperKey Then .Switch(swLRFlip)=False
-		If KeyCode=LeftFlipperKey Then .Switch(swLLFlip)=False
 		Select Case KeyCode
+			Case RightFlipperKey .Switch(swLRFlip) = False : vpmKeyUp = False
+			Case LeftFlipperKey  .Switch(swLLFlip) = False : vpmKeyUp = False
 			Case StartGameKey    .Switch(swStartButton) = False
 			Case keyCPUDiag      .Switch(swCPUDiag)     = False
 			Case keySlamDoorHit  .Switch(swSlamTilt)    = False
@@ -99,7 +99,8 @@ Function vpmKeyUp(ByVal KeyCode)
 			Case keyReset        .Stop : BeginModal : .Run : vpmTimer.Reset : EndModal
 			Case keyFrame        .LockDisplay = Not .LockDisplay
 			Case keyDoubleSize   .DoubleSize =  Not .DoubleSize
-			Case Else            vpmKeyUp=False
+			Case Else            vpmKeyUp = False
 		End Select
 	End With
+	On Error Goto 0
 End Function

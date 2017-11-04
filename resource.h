@@ -214,6 +214,7 @@
 #define IDS_PASTE_ELEMENT               189
 #define IDS_PASTE_AT_ELEMENT            190
 #define IDS_DELETE_ELEMENTS             191
+#define IDS_IMAGE_RAW_SIZE              192
 #define IDS_DRAWING_ORDER_SELECT        200
 #define IDR_APPMENU                     201
 #define IDC_SOUNDLIST                   201
@@ -543,8 +544,10 @@
 #define IDD_PROPPRIMITIVE_VISUALS       381
 #define IDD_PROPRAMP_VISUALS1           382
 #define IDD_PROPPLUNGER_VISUALS         382
-#define IDR_TABLE                       383
+#define IDR_EXAMPLE_TABLE               383
 #define IDC_ARASlider                   384
+#define IDR_TABLE1                      384
+#define IDR_EXAMPLETABLE                384
 #define IDC_PRIMITIVE                   385
 #define IDC_StretchNo                   386
 #define IDR_REGISTRY1                   386
@@ -658,6 +661,8 @@
 #define IDC_USE_NVIDIA_API_CHECK        431
 #define IDC_DBG_MATERIAL_OPACITY_ACTIVE_CHECK 431
 #define IDC_AUDIOOPT_3D_SOUND           431
+#define IDC_CHECK_ROTATE_CENTER         431
+#define IDC_CHECK_SCALE_CENTER          431
 #define IDC_OVERWRITE_MATERIAL_SETTINGS 432
 #define IDC_LIGHT_FALLOFF_POWER         432
 #define IDC_TARGET_LEGACY_MODE_CHECK    433
@@ -732,6 +737,7 @@
 #define IDC_START_VP_FILE_DIALOG        493
 #define IDC_BLEND_DISABLE_LIGHTING      494
 #define IDC_ENABLE_LEGACY_NUDGE         495
+#define IDC_BLEND_DISABLE_LIGHTING_FROM_BELOW 496
 #define IDC_JOYLFLIPCOMBO               501
 #define IDC_JOYRFLIPCOMBO               502
 #define IDC_JOYPLUNGERCOMBO             503
@@ -839,6 +845,7 @@
 #define IDC_ENABLE_CAMERA_FLY_AROUND    626
 #define IDD_SOUND_POSITION              629
 #define IDD_SOUND_POSITION_DIALOG       629
+#define IDR_BLANK_TABLE                 630
 #define IDC_CVP_BUT_CANCEL              701
 #define IDC_CVP_BUT_OK                  702
 #define IDC_CVP_BUT_COL_COMPS           703
@@ -905,7 +912,7 @@
 #define IDC_DBG_MATERIALCOMBO           757
 #define IDC_DBG_METAL_MATERIAL_CHECK    758
 #define IDC_DBG_MATERIAL_BASE_WRAP_EDIT 759
-#define IDC_DBG_MATERAIL_SHININESS_EDIT 761
+#define IDC_DBG_MATERIAL_SHININESS_EDIT 761
 #define IDC_DBG_MATERIAL_EDGE_EDIT      762
 #define IDC_DBG_MATERIAL_OPACITY_AMOUNT_EDIT 763
 #define DBG_MATERIAL_OPACITY_EDGE_EDIT  764
@@ -968,6 +975,10 @@
 #define IDC_EDIT_FADER                  814
 #define IDC_EDIT5                       815
 #define IDC_EDIT_VOL                    815
+#define IDC_DBG_MATERIAL_THICKNESS_EDIT 816
+#define IDC_THICKNESS_EDIT              817
+#define IDC_STATIC_THICKNESS            818
+#define IDC_STATIC_THICKNESS_TEXT       819
 #define DISPID_Gate_Height1             1142
 #define DISPID_Image                    1500
 #define DISPID_Image2                   1501
@@ -1013,6 +1024,8 @@
 #define ID_WALLMENU_PASTE               4017
 #define ID_TABLEMENU_COPY               4018
 #define ID_TABLEMENU_PASTE              4019
+#define ID_NEW_BLANKTABLE               4020
+#define ID_NEW_EXAMPLETABLE             4021
 #define IDM_NEW                         32768
 #define IDM_OPEN                        32769
 #define IDM_CLOSE                       32770
@@ -1118,9 +1131,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        630
-#define _APS_NEXT_COMMAND_VALUE         4020
-#define _APS_NEXT_CONTROL_VALUE         816
+#define _APS_NEXT_RESOURCE_VALUE        631
+#define _APS_NEXT_COMMAND_VALUE         4022
+#define _APS_NEXT_CONTROL_VALUE         820
 #define _APS_NEXT_SYMED_VALUE           188
 #endif
 #endif

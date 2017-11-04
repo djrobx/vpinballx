@@ -10,12 +10,13 @@ typedef struct _tagSORTDATA
 }SORTDATA;
 
 extern SORTDATA SortData;
-extern int columnSortOrder[4];
 extern int CALLBACK MyCompProc( LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOption );
+int SoundDialog::m_columnSortOrder;
 
 SoundDialog::SoundDialog() : CDialog( IDD_SOUNDDIALOG )
 {
     hSoundList = NULL;
+    m_columnSortOrder = 1;
 }
 
 SoundDialog::~SoundDialog()
@@ -60,6 +61,7 @@ BOOL SoundDialog::OnInitDialog()
     LoadPosition();
 
     LVCOLUMN lvcol;
+    m_columnSortOrder = 1;
 
     ListView_SetExtendedListViewStyle( hSoundList, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES );
 	memset(&lvcol, 0, sizeof(LVCOLUMN));
@@ -93,7 +95,9 @@ BOOL SoundDialog::OnInitDialog()
 	if (pt)
 		pt->ListSounds(hSoundList);
 
-    return TRUE;
+   ListView_SetItemState(hSoundList, 0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+   GotoDlgCtrl(hSoundList);
+   return FALSE;
 }
 
 INT_PTR SoundDialog::DialogProc( UINT uMsg, WPARAM wParam, LPARAM lParam )
@@ -112,13 +116,13 @@ INT_PTR SoundDialog::DialogProc( UINT uMsg, WPARAM wParam, LPARAM lParam )
                 if(lpnmListView->hdr.code == LVN_COLUMNCLICK)
                 {
                     const int columnNumber = lpnmListView->iSubItem;
-                    if(columnSortOrder[columnNumber] == 1)
-                        columnSortOrder[columnNumber] = 0;
+                    if(m_columnSortOrder == 1)
+                       m_columnSortOrder = 0;
                     else
-                        columnSortOrder[columnNumber] = 1;
+                       m_columnSortOrder = 1;
                     SortData.hwndList = hSoundList;
                     SortData.subItemIndex = columnNumber;
-                    SortData.sortUpDown = columnSortOrder[columnNumber];
+                    SortData.sortUpDown = m_columnSortOrder;
                     ListView_SortItems( SortData.hwndList, MyCompProc, &SortData );
                 }
             }
@@ -487,15 +491,16 @@ void SoundDialog::SoundToBG()
 
             pps->m_iOutputTarget = (pps->m_iOutputTarget != SNDOUT_BACKGLASS) ? SNDOUT_BACKGLASS : SNDOUT_TABLE;
 
-            char pathName[MAX_PATH];
-            memset( pathName, 0, MAX_PATH );
-            if(pps->m_iOutputTarget)
+            switch (pps->m_iOutputTarget)
             {
-                strcpy_s( pathName, "*BG* " );
+               case SNDOUT_BACKGLASS:
+                  ListView_SetItemText(hSoundList, sel, 2, "Backglass");
+                  break;
+               default:
+                  ListView_SetItemText(hSoundList, sel, 2, "Table");
+                  break;
             }
-            strcat_s( pathName, pps->m_szPath );
-            ListView_SetItemText( hSoundList, sel, 1, pathName );
-            pt->SetNonUndoableDirty( eSaveDirty );
+            pt->SetNonUndoableDirty(eSaveDirty);
 
             sel = ListView_GetNextItem(hSoundList, sel, LVNI_SELECTED ); //next selected item
         }

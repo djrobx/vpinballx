@@ -579,14 +579,14 @@ STDMETHODIMP ScriptGlobalTable::get_SystemTime(long *pVal)
 /*STDMETHODIMP ScriptGlobalTable::put_NightDay(int pVal)
 {
 if(g_pplayer)
-g_pplayer->m_globalEmissionScale = dequantizeSignedPercent(newVal);
+g_pplayer->m_globalEmissionScale = dequantizeUnsignedPercent(newVal);
 return S_OK;
 }*/
 
 STDMETHODIMP ScriptGlobalTable::get_NightDay(int *pVal)
 {
    if (g_pplayer)
-      *pVal = quantizeSignedPercent(g_pplayer->m_globalEmissionScale);
+      *pVal = quantizeUnsignedPercent(g_pplayer->m_globalEmissionScale);
    return S_OK;
 }
 
@@ -1362,7 +1362,7 @@ PinTable::PinTable()
    m_globalDifficulty = 0.2f;			// easy by default
    hr = GetRegInt("Player", "GlobalDifficulty", &tmp);
    if (hr == S_OK)
-      m_globalDifficulty = dequantizeSignedPercent(tmp);
+      m_globalDifficulty = dequantizeUnsignedPercent(tmp);
 
    int accel;
    hr = GetRegInt("Player", "PBWEnabled", &accel); // true if electronic accelerometer enabled
@@ -1389,12 +1389,12 @@ PinTable::PinTable()
    m_tblAccelAmpX = 1.5f;
    hr = GetRegInt("Player", "PBWAccelGainX", &tmp);
    if (hr == S_OK)
-      m_tblAccelAmpX = dequantizeSignedPercent(tmp);
+      m_tblAccelAmpX = dequantizeUnsignedPercentNoClamp(tmp);
 
    m_tblAccelAmpY = 1.5f;
    hr = GetRegInt("Player", "PBWAccelGainY", &tmp);
    if (hr == S_OK)
-      m_tblAccelAmpY = dequantizeSignedPercent(tmp);
+      m_tblAccelAmpY = dequantizeUnsignedPercentNoClamp(tmp);
 
    m_tblAccelMaxX = JOYRANGEMX;
    hr = GetRegInt("Player", "PBWAccelMaxX", &tmp);
@@ -1459,8 +1459,8 @@ PinTable::PinTable()
    m_3DOffset = 0.0f;
    m_overwriteGlobalStereo3D = false;
 
-   dbgChangedMaterials.clear();
-   dbgChangedLights.clear();
+   m_dbgChangedMaterials.clear();
+   m_dbgChangedLights.clear();
 
 #ifdef UNUSED_TILT
    if ( FAILED(GetRegInt("Player", "JoltAmount", &m_jolt_amount) )
@@ -1821,13 +1821,18 @@ void PinTable::DeleteFromLayer(IEditable *obj)
 
 #define NEWFROMRES 1
 
-void PinTable::Init(VPinball *pvp)
+void PinTable::Init(VPinball *pvp, const bool useBlankTable)
 {
    m_pvp = pvp;
 
 #ifdef NEWFROMRES
+   HRSRC hrsrc;
    // Get our new table resource, get it to be opened as a storage, and open it like a normal file
-   HRSRC hrsrc = FindResource(NULL, MAKEINTRESOURCE(IDR_TABLE), "TABLE");
+   if (useBlankTable)
+      hrsrc = FindResource(NULL, MAKEINTRESOURCE(IDR_BLANK_TABLE), "TABLE");
+   else
+      hrsrc = FindResource(NULL, MAKEINTRESOURCE(IDR_EXAMPLE_TABLE), "TABLE");
+
    HGLOBAL hglobal = LoadResource(NULL, hrsrc);
    char *pchar = (char *)LockResource(hglobal);
    DWORD size = SizeofResource(NULL, hrsrc);
@@ -3577,12 +3582,12 @@ HRESULT PinTable::SaveData(IStream* pstm, HCRYPTHASH hcrypthash, HCRYPTKEY hcryp
          mats[i].fWrapLighting = m->m_fWrapLighting;
          mats[i].fRoughness = m->m_fRoughness;
          mats[i].fGlossyImageLerp = 255 - quantizeUnsigned<8>(clamp(m->m_fGlossyImageLerp, 0.f, 1.f)); // '255 -' to be compatible with previous table versions
+         mats[i].fThickness = quantizeUnsigned<8>(clamp(m->m_fThickness, 0.05f, 1.f)); // clamp with 0.05f to be compatible with previous table versions
          mats[i].fEdge = m->m_fEdge;
          mats[i].fOpacity = m->m_fOpacity;
          mats[i].bIsMetal = m->m_bIsMetal;
          mats[i].bOpacityActive_fEdgeAlpha = m->m_bOpacityActive ? 1 : 0;
          mats[i].bOpacityActive_fEdgeAlpha |= quantizeUnsigned<7>(clamp(m->m_fEdgeAlpha, 0.f, 1.f)) << 1;
-         mats[i].bUnused2 = 0;
          strcpy_s(mats[i].szName, m->m_szName);
       }
       bw.WriteStruct(FID(MATE), mats, (int)sizeof(SaveMaterial)*m_materials.Size());
@@ -3939,6 +3944,10 @@ HRESULT PinTable::LoadGameFromStorage(IStorage *pstgRoot)
          if (loadfileversion < 1030) // the m_fGlossyImageLerp part was included first with 10.3, so set all previously saved materials to the old default
              for (int i = 0; i < m_materials.size(); ++i)
                  m_materials.ElementAt(i)->m_fGlossyImageLerp = 1.f;
+
+         if (loadfileversion < 1040) // the m_fThickness part was included first with 10.4, so set all previously saved materials to the old default
+             for (int i = 0; i < m_materials.size(); ++i)
+                 m_materials.ElementAt(i)->m_fThickness = 0.05f;
 
          //////// End Authentication block
       }
@@ -4478,7 +4487,7 @@ BOOL PinTable::LoadToken(int id, BiffReader *pbr)
       pbr->GetFloat(&m_globalDifficulty);
       int tmp;
       HRESULT hr = GetRegInt("Player", "GlobalDifficulty", &tmp);
-      if (hr == S_OK) m_globalDifficulty = dequantizeSignedPercent(tmp);
+      if (hr == S_OK) m_globalDifficulty = dequantizeUnsignedPercent(tmp);
    }
    else if (id == FID(CUST))
    {
@@ -4547,6 +4556,7 @@ BOOL PinTable::LoadToken(int id, BiffReader *pbr)
          pmat->m_fWrapLighting = mats[i].fWrapLighting;
          pmat->m_fRoughness = mats[i].fRoughness;
          pmat->m_fGlossyImageLerp = 1.0f - dequantizeUnsigned<8>(mats[i].fGlossyImageLerp); //!! '1.0f -' to be compatible with previous table versions
+         pmat->m_fThickness = (mats[i].fThickness == 0) ? 0.05f : dequantizeUnsigned<8>(mats[i].fThickness); //!! 0 -> 0.05f to be compatible with previous table versions
          pmat->m_fEdge = mats[i].fEdge;
          pmat->m_fOpacity = mats[i].fOpacity;
          pmat->m_bIsMetal = mats[i].bIsMetal;
@@ -5121,6 +5131,77 @@ void PinTable::DoRButtonDown(int x, int y)
    }
 }
 
+void PinTable::FillCollectionContextMenu(HMENU hmenu, HMENU colSubMenu, ISelect *psel)
+{
+    LocalString ls16(IDS_TO_COLLECTION);
+    AppendMenu(hmenu, MF_POPUP | MF_STRING, (size_t)colSubMenu, ls16.m_szbuffer);
+
+    int maxItems = m_vcollection.Size() - 1;
+    if(maxItems > 32) maxItems = 32;
+
+    // run through all collections and list up to 32 of them in the context menu
+    // the actual processing is done in ISelect::DoCommand() 
+    for(int i = maxItems; i >= 0; i--)
+    {
+        CComBSTR bstr;
+        m_vcollection.ElementAt(i)->get_Name(&bstr);
+        char szT[64]; // Names can only be 32 characters (plus terminator)
+        WideCharToMultiByte(CP_ACP, 0, bstr, -1, szT, 64, NULL, NULL);
+
+        AppendMenu(colSubMenu, MF_POPUP, 0x40000 + i, szT);
+        CheckMenuItem(colSubMenu, 0x40000 + i, MF_UNCHECKED);
+    }
+    if(m_vmultisel.Size() == 1)
+    {
+        for(int i = maxItems; i >= 0; i--)
+        {
+            for(int t = 0; t < m_vcollection.ElementAt(i)->m_visel.Size(); t++)
+            {
+                if(psel == m_vcollection.ElementAt(i)->m_visel.ElementAt(t))
+                {
+                    CheckMenuItem(colSubMenu, 0x40000 + i, MF_CHECKED);
+                }
+            }
+        }
+    }
+    else
+    {
+        vector<int> allIndices;
+
+        for(int t = 0; t < m_vmultisel.Size(); t++)
+        {
+            ISelect *iSel = m_vmultisel.ElementAt(t);
+
+            for(int i = maxItems; i >= 0 ; i--)
+            {
+                for(int t = 0; t < m_vcollection.ElementAt(i)->m_visel.Size(); t++)
+                {
+                    if((iSel == m_vcollection.ElementAt(i)->m_visel.ElementAt(t)))
+                    {
+                        allIndices.push_back(i);
+                    }
+                }
+            }
+        }
+        if(allIndices.size() % m_vmultisel.Size() == 0)
+        {
+            for(int i = 0; i < allIndices.size();i++)
+                CheckMenuItem(colSubMenu, 0x40000 + allIndices[i], MF_CHECKED);
+        }
+        else
+        {
+            // multiple elements where selected but they belong to different collections so grey-out all
+            // collection menu items to tell the user that it's not possible to add/remove them from different collections
+            for(int i = maxItems; i >= 0; i--)
+            {
+                EnableMenuItem(colSubMenu, 0x40000 + i, MF_DISABLED);
+            }
+            for(int i = 0; i < allIndices.size(); i++)
+                CheckMenuItem(colSubMenu, 0x40000 + allIndices[i], MF_CHECKED);
+        }
+    }
+}
+
 void PinTable::DoContextMenu(int x, int y, int menuid, ISelect *psel)
 {
    POINT pt;
@@ -5230,37 +5311,14 @@ void PinTable::DoContextMenu(int x, int y, int menuid, ISelect *psel)
       else
          CheckMenuItem(subMenu, ID_ASSIGNTO_LAYER8, MF_UNCHECKED);
 
-      LocalString ls16(IDS_TO_COLLECTION);
-      AppendMenu(hmenu, MF_POPUP | MF_STRING, (size_t)colSubMenu, ls16.m_szbuffer);
+      FillCollectionContextMenu(hmenu, colSubMenu, psel);
 
-      int maxItems = m_vcollection.Size() - 1;
-      if (maxItems > 32) maxItems = 32;
-
-      for (int i = maxItems; i >= 0; i--)
-      {
-         CComBSTR bstr;
-         m_vcollection.ElementAt(i)->get_Name(&bstr);
-         char szT[64]; // Names can only be 32 characters (plus terminator)
-         WideCharToMultiByte(CP_ACP, 0, bstr, -1, szT, 64, NULL, NULL);
-
-         AppendMenu(colSubMenu, MF_POPUP, 0x40000 + i, szT);
-         CheckMenuItem(colSubMenu, 0x40000 + i, MF_UNCHECKED);
-      }
-      for (int i = maxItems; i >= 0; i--)
-      {
-         for (int t = 0; t < m_vcollection.ElementAt(i)->m_visel.Size(); t++)
-         {
-            if (psel == m_vcollection.ElementAt(i)->m_visel.ElementAt(t))
-            {
-               CheckMenuItem(colSubMenu, 0x40000 + i, MF_CHECKED);
-            }
-         }
-      }
       LocalString ls5(IDS_LOCK);
       AppendMenu(hmenu, MF_STRING, ID_LOCK, ls5.m_szbuffer);
 
       AppendMenu(hmenu, MF_SEPARATOR, ~0u, "");
       AppendMenu(hmenu, MF_SEPARATOR, ~0u, "");
+      /*now list all elements that are stacked at the mouse pointer*/
       for (int i = 0; i < m_allHitElements.Size(); i++)
       {
          if (!m_allHitElements.ElementAt(i)->GetIEditable()->m_isVisible)
@@ -5372,7 +5430,7 @@ void PinTable::DoCommand(int icmd, int x, int y)
 {
    if (((icmd & 0x000FFFFF) >= 0x40000) && ((icmd & 0x000FFFFF) < 0x40020))
    {
-      AddToCollection(icmd & 0x000000FF);
+      UpdateCollection(icmd & 0x000000FF);
       return;
    }
 
@@ -5566,7 +5624,7 @@ void PinTable::AssignMultiToLayer(int layerNumber, int x, int y)
    }
 }
 
-void PinTable::AddToCollection(int index)
+void PinTable::UpdateCollection(int index)
 {
    if (index < m_vcollection.Size() && index < 32)
    {
@@ -5580,7 +5638,8 @@ void PinTable::AddToCollection(int index)
             {
                if (ptr == m_vcollection.ElementAt(index)->m_visel.ElementAt(k))
                {
-                  //already assigned
+                  //already assigned so remove it
+                  m_vcollection.ElementAt(index)->m_visel.RemoveElement(ptr);
                   alreadyIn = true;
                   break;
                }
@@ -5616,9 +5675,17 @@ void PinTable::LockElements()
    for (int i = 0; i < m_vmultisel.Size(); i++)
    {
       ISelect *psel;
+      IEditable *pedit;
       psel = m_vmultisel.ElementAt(i);
-      psel->GetIEditable()->MarkForUndo();
-      psel->m_fLocked = fLock;
+      if (psel)
+      {
+         pedit = psel->GetIEditable();
+         if (pedit)
+         {
+            psel->GetIEditable()->MarkForUndo();
+            psel->m_fLocked = fLock;
+         }
+      }
    }
    EndUndo();
    SetDirtyDraw();
@@ -5971,25 +6038,25 @@ void PinTable::FlipX(Vertex2D * const pvCenter)
    EndUndo();
 }
 
-void PinTable::Rotate(float ang, Vertex2D *pvCenter)
+void PinTable::Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter)
 {
    BeginUndo();
 
    for (int i = 0; i < m_vmultisel.Size(); i++)
    {
-      m_vmultisel.ElementAt(i)->Rotate(ang, pvCenter);
+      m_vmultisel.ElementAt(i)->Rotate(ang, pvCenter, useElementCenter);
    }
 
    EndUndo();
 }
 
-void PinTable::Scale(float scalex, float scaley, Vertex2D *pvCenter)
+void PinTable::Scale(float scalex, float scaley, Vertex2D *pvCenter, const bool useElementsCenter)
 {
    BeginUndo();
 
    for (int i = 0; i < m_vmultisel.Size(); i++)
    {
-      m_vmultisel.ElementAt(i)->Scale(scalex, scaley, pvCenter);
+      m_vmultisel.ElementAt(i)->Scale(scalex, scaley, pvCenter, useElementsCenter);
    }
 
    EndUndo();
@@ -8076,10 +8143,12 @@ int PinTable::AddListImage(HWND hwndListView, Texture *ppi)
 
    ListView_SetItemText(hwndListView, index, 1, ppi->m_szPath);
    ListView_SetItemText(hwndListView, index, 2, sizeString);
-   ListView_SetItemText( hwndListView, index, 3, usedStringNo );
+   ListView_SetItemText(hwndListView, index, 3, usedStringNo);
+   
+   _snprintf_s(sizeString, MAXTOKEN, "%i", ppi->m_pdsBuffer->m_data.size());
 
-  
-   if(    (_stricmp( m_szImage, ppi->m_szName)==0) 
+   ListView_SetItemText(hwndListView, index, 4, sizeString);
+   if((_stricmp(m_szImage, ppi->m_szName) == 0)
        || (_stricmp( m_szBallImage, ppi->m_szName ) == 0) 
        || (_stricmp( m_szBallImageFront, ppi->m_szName)==0 )
        || (_stricmp( m_szEnvImage, ppi->m_szName ) == 0)
@@ -8278,9 +8347,9 @@ void PinTable::AddDbgMaterial(Material *pmat)
    bool alreadyIn = false;
    unsigned int i;
 
-   for (i = 0; i < dbgChangedMaterials.size(); i++)
+   for (i = 0; i < m_dbgChangedMaterials.size(); i++)
    {
-      if (strcmp(pmat->m_szName, dbgChangedMaterials[i]->m_szName) == 0)
+      if (strcmp(pmat->m_szName, m_dbgChangedMaterials[i]->m_szName) == 0)
       {
          alreadyIn = true;
          break;
@@ -8289,17 +8358,18 @@ void PinTable::AddDbgMaterial(Material *pmat)
       
    if (alreadyIn)
    {
-      dbgChangedMaterials[i]->m_bIsMetal = pmat->m_bIsMetal;
-      dbgChangedMaterials[i]->m_bOpacityActive = pmat->m_bOpacityActive;
-      dbgChangedMaterials[i]->m_cBase = pmat->m_cBase;
-      dbgChangedMaterials[i]->m_cClearcoat = pmat->m_cClearcoat;
-      dbgChangedMaterials[i]->m_cGlossy = pmat->m_cGlossy;
-      dbgChangedMaterials[i]->m_fEdge = pmat->m_fEdge;
-      dbgChangedMaterials[i]->m_fEdgeAlpha = pmat->m_fEdgeAlpha;
-      dbgChangedMaterials[i]->m_fOpacity = pmat->m_fOpacity;
-      dbgChangedMaterials[i]->m_fRoughness = pmat->m_fRoughness;
-      dbgChangedMaterials[i]->m_fGlossyImageLerp = pmat->m_fGlossyImageLerp;
-      dbgChangedMaterials[i]->m_fWrapLighting = pmat->m_fWrapLighting;
+      m_dbgChangedMaterials[i]->m_bIsMetal = pmat->m_bIsMetal;
+      m_dbgChangedMaterials[i]->m_bOpacityActive = pmat->m_bOpacityActive;
+      m_dbgChangedMaterials[i]->m_cBase = pmat->m_cBase;
+      m_dbgChangedMaterials[i]->m_cClearcoat = pmat->m_cClearcoat;
+      m_dbgChangedMaterials[i]->m_cGlossy = pmat->m_cGlossy;
+      m_dbgChangedMaterials[i]->m_fEdge = pmat->m_fEdge;
+      m_dbgChangedMaterials[i]->m_fEdgeAlpha = pmat->m_fEdgeAlpha;
+      m_dbgChangedMaterials[i]->m_fOpacity = pmat->m_fOpacity;
+      m_dbgChangedMaterials[i]->m_fRoughness = pmat->m_fRoughness;
+      m_dbgChangedMaterials[i]->m_fGlossyImageLerp = pmat->m_fGlossyImageLerp;
+      m_dbgChangedMaterials[i]->m_fThickness = pmat->m_fThickness;
+      m_dbgChangedMaterials[i]->m_fWrapLighting = pmat->m_fWrapLighting;
    }
    else
    {
@@ -8314,18 +8384,19 @@ void PinTable::AddDbgMaterial(Material *pmat)
       newMat->m_fOpacity = pmat->m_fOpacity;
       newMat->m_fRoughness = pmat->m_fRoughness;
       newMat->m_fGlossyImageLerp = pmat->m_fGlossyImageLerp;
+      newMat->m_fThickness = pmat->m_fThickness;
       newMat->m_fWrapLighting = pmat->m_fWrapLighting;
       strcpy_s(newMat->m_szName, pmat->m_szName);
-      dbgChangedMaterials.push_back(newMat);
+      m_dbgChangedMaterials.push_back(newMat);
    }
 }
 
 void PinTable::UpdateDbgMaterial(void)
 {
    bool somethingChanged = false;
-   for (unsigned int i = 0; i < dbgChangedMaterials.size();i++)
+   for (unsigned int i = 0; i < m_dbgChangedMaterials.size(); i++)
    {
-      const Material * const pmat = dbgChangedMaterials[i];
+      const Material * const pmat = m_dbgChangedMaterials[i];
       for (int t = 0; t < m_materials.Size(); t++)
       {
          if (strcmp(pmat->m_szName, m_materials.ElementAt(t)->m_szName) == 0)
@@ -8341,13 +8412,14 @@ void PinTable::UpdateDbgMaterial(void)
             mat->m_fOpacity = pmat->m_fOpacity;
             mat->m_fRoughness = pmat->m_fRoughness;
             mat->m_fGlossyImageLerp = pmat->m_fGlossyImageLerp;
+            mat->m_fThickness = pmat->m_fThickness;
             mat->m_fWrapLighting = pmat->m_fWrapLighting;
             somethingChanged = true;
             break;
          }
       }
    }
-   dbgChangedMaterials.clear();
+   m_dbgChangedMaterials.clear();
    if (somethingChanged)
    {
       SetNonUndoableDirty(eSaveDirty);
@@ -8357,6 +8429,9 @@ void PinTable::UpdateDbgMaterial(void)
 int PinTable::AddListMaterial(HWND hwndListView, Material *pmat)
 {
    LVITEM lvitem;
+   char * const usedStringYes = "X";
+   char * const usedStringNo = " ";
+   
    lvitem.mask = LVIF_DI_SETITEM | LVIF_TEXT | LVIF_PARAM;
    lvitem.iItem = 0;
    lvitem.iSubItem = 0;
@@ -8364,6 +8439,95 @@ int PinTable::AddListMaterial(HWND hwndListView, Material *pmat)
    lvitem.lParam = (size_t)pmat;
 
    const int index = ListView_InsertItem(hwndListView, &lvitem);
+   ListView_SetItemText(hwndListView, index, 1, usedStringNo);
+   if ((_stricmp(m_szPlayfieldMaterial, pmat->m_szName) == 0))
+   {
+      ListView_SetItemText(hwndListView, index, 1, usedStringYes);
+   }
+   else
+   {
+      for (int i = 0; i < m_vedit.Size(); i++)
+      {
+         bool inUse = false;
+         IEditable *pEdit = m_vedit.ElementAt(i);
+         if (pEdit == NULL)
+            continue;
+
+         switch (pEdit->GetItemType())
+         {
+         case eItemPrimitive:
+         {
+            Primitive *pPrim = (Primitive*)pEdit;
+            if ((_stricmp(pPrim->m_d.m_szMaterial, pmat->m_szName) == 0) || (_stricmp(pPrim->m_d.m_szPhysicsMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemRamp:
+         {
+            Ramp *pRamp = (Ramp*)pEdit;
+            if ((_stricmp(pRamp->m_d.m_szMaterial, pmat->m_szName) == 0) || (_stricmp(pRamp->m_d.m_szPhysicsMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemSurface:
+         {
+            Surface *pSurf = (Surface*)pEdit;
+            if ((_stricmp(pSurf->m_d.m_szPhysicsMaterial, pmat->m_szName) == 0) || (_stricmp(pSurf->m_d.m_szSideMaterial, pmat->m_szName) == 0) || (_stricmp(pSurf->m_d.m_szTopMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemDecal:
+         {
+            Decal *pDecal = (Decal*)pEdit;
+            if ((_stricmp(pDecal->m_d.m_szMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemFlipper:
+         {
+            Flipper *pFlip = (Flipper*)pEdit;
+            if ((_stricmp(pFlip->m_d.m_szRubberMaterial, pmat->m_szName) == 0) || (_stricmp(pFlip->m_d.m_szMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemHitTarget:
+         {
+            HitTarget *pHit = (HitTarget*)pEdit;
+            if ((_stricmp(pHit->m_d.m_szMaterial, pmat->m_szName) == 0) || (_stricmp(pHit->m_d.m_szPhysicsMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemPlunger:
+         {
+            Plunger *pPlung = (Plunger*)pEdit;
+            if (_stricmp(pPlung->m_d.m_szMaterial, pmat->m_szName) == 0)
+               inUse = true;
+            break;
+         }
+         case eItemSpinner:
+         {
+            Spinner *pSpin = (Spinner*)pEdit;
+            if (_stricmp(pSpin->m_d.m_szMaterial, pmat->m_szName) == 0)
+               inUse = true;
+            break;
+         }
+         case eItemRubber:
+         {
+            Rubber *pRub = (Rubber*)pEdit;
+            if ((_stricmp(pRub->m_d.m_szMaterial, pmat->m_szName) == 0) || (_stricmp(pRub->m_d.m_szPhysicsMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         default:
+            break;
+         }
+         if (inUse)
+         {
+            ListView_SetItemText(hwndListView, index, 1, usedStringYes);
+            break;
+         }
+      }//for
+   }
    return index;
 }
 
@@ -8379,9 +8543,9 @@ void PinTable::AddDbgLight( Light *plight )
     unsigned int i;
     char *lightName = GetElementName( plight );
 
-    for(i = 0; i < dbgChangedMaterials.size(); i++)
+    for(i = 0; i < m_dbgChangedMaterials.size(); i++)
     {
-        if(strcmp( lightName, dbgChangedLights[i]->name) == 0)
+        if(strcmp( lightName, m_dbgChangedLights[i]->name) == 0)
         {
             alreadyIn = true;
             break;
@@ -8389,16 +8553,16 @@ void PinTable::AddDbgLight( Light *plight )
     }
     if(alreadyIn)
     {
-        dbgChangedLights[i]->color1 = plight->m_d.m_color;
-        dbgChangedLights[i]->color2 = plight->m_d.m_color2;
-        plight->get_BulbModulateVsAdd( &dbgChangedLights[i]->bulbModulateVsAdd );
-        plight->get_FadeSpeedDown( &dbgChangedLights[i]->fadeSpeedDown );
-        plight->get_FadeSpeedUp( &dbgChangedLights[i]->fadeSpeedUp );
-        plight->get_State( &dbgChangedLights[i]->lightstate );
-        plight->get_Falloff( &dbgChangedLights[i]->falloff );
-        plight->get_FalloffPower( &dbgChangedLights[i]->falloffPower );
-        plight->get_Intensity( &dbgChangedLights[i]->intensity );
-        plight->get_TransmissionScale( &dbgChangedLights[i]->transmissionScale );
+        m_dbgChangedLights[i]->color1 = plight->m_d.m_color;
+        m_dbgChangedLights[i]->color2 = plight->m_d.m_color2;
+        plight->get_BulbModulateVsAdd(&m_dbgChangedLights[i]->bulbModulateVsAdd);
+        plight->get_FadeSpeedDown(&m_dbgChangedLights[i]->fadeSpeedDown);
+        plight->get_FadeSpeedUp(&m_dbgChangedLights[i]->fadeSpeedUp);
+        plight->get_State(&m_dbgChangedLights[i]->lightstate);
+        plight->get_Falloff(&m_dbgChangedLights[i]->falloff);
+        plight->get_FalloffPower(&m_dbgChangedLights[i]->falloffPower);
+        plight->get_Intensity(&m_dbgChangedLights[i]->intensity);
+        plight->get_TransmissionScale(&m_dbgChangedLights[i]->transmissionScale);
     }
     else
     {
@@ -8414,16 +8578,16 @@ void PinTable::AddDbgLight( Light *plight )
         plight->get_Intensity( &data->intensity );
         plight->get_TransmissionScale( &data->transmissionScale );
         strcpy_s( data->name, lightName );
-        dbgChangedLights.push_back( data );
+        m_dbgChangedLights.push_back(data);
     }
 }
 
 void PinTable::UpdateDbgLight( void )
 {
     bool somethingChanged = false;
-    for(unsigned int i = 0; i < dbgChangedLights.size(); i++)
+    for(unsigned int i = 0; i < m_dbgChangedLights.size(); i++)
     {
-        DebugLightData *data = dbgChangedLights[i];
+        DebugLightData *data = m_dbgChangedLights[i];
         for(int t = 0; t < m_vedit.Size(); t++)
         {
             if(m_vedit.ElementAt( t )->GetItemType() == eItemLight)
@@ -8447,7 +8611,7 @@ void PinTable::UpdateDbgLight( void )
             }
         }
     }
-    dbgChangedLights.clear();
+    m_dbgChangedLights.clear();
     if(somethingChanged)
     {
         SetNonUndoableDirty( eSaveDirty );
@@ -9297,7 +9461,7 @@ STDMETHODIMP PinTable::put_LightEmissionScale(float newVal)
 
 STDMETHODIMP PinTable::get_NightDay(int *pVal)
 {
-   *pVal = quantizeSignedPercent(m_globalEmissionScale);
+   *pVal = quantizeUnsignedPercent(m_globalEmissionScale);
 
    return S_OK;
 }
@@ -9306,7 +9470,7 @@ STDMETHODIMP PinTable::put_NightDay(int newVal)
 {
    STARTUNDO
 
-   m_globalEmissionScale = dequantizeSignedPercent(newVal);
+   m_globalEmissionScale = dequantizeUnsignedPercent(newVal);
 
    STOPUNDO
 
@@ -9369,7 +9533,7 @@ STDMETHODIMP PinTable::put_BallReflection(UserDefaultOnOff newVal)
 
 STDMETHODIMP PinTable::get_PlayfieldReflectionStrength(int *pVal)
 {
-   *pVal = quantizeSignedPercent(m_playfieldReflectionStrength);
+   *pVal = quantizeUnsignedPercent(m_playfieldReflectionStrength);
 
    return S_OK;
 }
@@ -9378,7 +9542,7 @@ STDMETHODIMP PinTable::put_PlayfieldReflectionStrength(int newVal)
 {
    STARTUNDO
 
-   m_playfieldReflectionStrength = dequantizeSignedPercent(newVal);
+   m_playfieldReflectionStrength = dequantizeUnsignedPercent(newVal);
 
    STOPUNDO
 
@@ -9405,7 +9569,7 @@ STDMETHODIMP PinTable::put_BallTrail(UserDefaultOnOff newVal)
 
 STDMETHODIMP PinTable::get_TrailStrength(int *pVal)
 {
-   *pVal = quantizeSignedPercent(m_ballTrailStrength);
+   *pVal = quantizeUnsignedPercent(m_ballTrailStrength);
 
    return S_OK;
 }
@@ -9414,7 +9578,7 @@ STDMETHODIMP PinTable::put_TrailStrength(int newVal)
 {
    STARTUNDO
 
-   m_ballTrailStrength = dequantizeSignedPercent(newVal);
+   m_ballTrailStrength = dequantizeUnsignedPercent(newVal);
 
    STOPUNDO
 
@@ -9477,7 +9641,7 @@ STDMETHODIMP PinTable::put_BloomStrength(float newVal)
 
 STDMETHODIMP PinTable::get_TableSoundVolume(int *pVal)
 {
-   *pVal = quantizeSignedPercent(m_TableSoundVolume);
+   *pVal = quantizeUnsignedPercent(m_TableSoundVolume);
 
    return S_OK;
 }
@@ -9486,7 +9650,7 @@ STDMETHODIMP PinTable::put_TableSoundVolume(int newVal)
 {
    STARTUNDO
 
-   m_TableSoundVolume = dequantizeSignedPercent(newVal);
+   m_TableSoundVolume = dequantizeUnsignedPercent(newVal);
 
    STOPUNDO
 
@@ -9599,7 +9763,7 @@ STDMETHODIMP PinTable::put_BallDecalMode(VARIANT_BOOL newVal)
 
 STDMETHODIMP PinTable::get_TableMusicVolume(int *pVal)
 {
-   *pVal = quantizeSignedPercent(m_TableMusicVolume);
+   *pVal = quantizeUnsignedPercent(m_TableMusicVolume);
 
    return S_OK;
 }
@@ -9608,7 +9772,7 @@ STDMETHODIMP PinTable::put_TableMusicVolume(int newVal)
 {
    STARTUNDO
 
-   m_TableMusicVolume = dequantizeSignedPercent(newVal);
+   m_TableMusicVolume = dequantizeUnsignedPercent(newVal);
 
    STOPUNDO
 

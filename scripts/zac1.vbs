@@ -20,6 +20,7 @@ End Sub
 ' Cabinet switches
 Const swProgEnable     = -2
 Const swDiagnostics    =  0
+Const swSlamTilt       =  2
 Const swCoin1          =  4
 Const swCoin2          =  5
 Const swCoin3          =  6
@@ -54,16 +55,16 @@ Function vpmKeyDown(ByVal keycode)
 	On Error Resume Next
 	vpmKeyDown = True ' Assume we handle the key
 	With Controller
-		If keycode = RightFlipperKey Then .Switch(swLRFlip) = True
-		If keycode = LeftFlipperKey  Then .Switch(swLLFlip) = True
 		Select Case keycode
+			Case RightFlipperKey .Switch(swLRFlip) = True : vpmKeyDown = False
+			Case LeftFlipperKey  .Switch(swLLFlip) = True : vpmKeyDown = False
 			Case keyInsertCoin1  vpmTimer.PulseSw swCoin1 : Playsound SCoin
 			Case keyInsertCoin2  vpmTimer.PulseSw swCoin2 : Playsound SCoin
 			Case keyInsertCoin3  vpmTimer.PulseSw swCoin3 : Playsound SCoin
 			Case StartGameKey    vpmTimer.PulseSw swStartButton
 			Case keySelfTest     vpmTimer.PulseSw swDiagnostics
 			Case keyDown         vpmTimer.PulseSw swProgEnable
-			Case keySlamDoorHit  .Switch(2)=True
+			Case keySlamDoorHit  .Switch(swSlamTilt) = True
 			Case keyBangBack     vpmNudge.DoNudge   0, 6
 			Case LeftTiltKey     vpmNudge.DoNudge  75, 2
 			Case RightTiltKey    vpmNudge.DoNudge 285, 2
@@ -79,10 +80,10 @@ Function vpmKeyUp(ByVal keycode)
 	On Error Resume Next
 	vpmKeyUp = True ' Assume we handle the key
 	With Controller
-		If keycode = RightFlipperKey Then .Switch(swLRFlip) = False
-		If keycode = LeftFlipperKey  Then .Switch(swLLFlip) = False
 		Select Case keycode
-			Case keySlamDoorHit  .Switch(2)=False
+			Case RightFlipperKey .Switch(swLRFlip) = False : vpmKeyUp = False
+			Case LeftFlipperKey  .Switch(swLLFlip) = False : vpmKeyUp = False
+			Case keySlamDoorHit  .Switch(swSlamTilt) = False
 			Case keyShowOpts     .Pause = True : .ShowOptsDialog GetPlayerHWnd : .Pause = False
 			Case keyShowKeys     .Pause = True : vpmShowHelp : .Pause = False
 			Case keyAddBall      .Pause = True : vpmAddBall  : .Pause = False
@@ -92,4 +93,5 @@ Function vpmKeyUp(ByVal keycode)
 			Case Else            vpmKeyUp = False
 		End Select
 	End With
+	On Error Goto 0
 End Function

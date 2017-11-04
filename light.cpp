@@ -539,6 +539,8 @@ void Light::EndPlay()
 
 float Light::GetDepth(const Vertex3Ds& viewDir)
 {
+	if (m_fBackglass)
+		return 0.f;
    return (!m_fBackglass) ? (m_d.m_depthBias + viewDir.x * m_d.m_vCenter.x + viewDir.y * m_d.m_vCenter.y + viewDir.z * m_surfaceHeight) : 0.f;
 }
 
@@ -560,6 +562,7 @@ void Light::RenderBulbMesh(RenderDevice *pd3dDevice, COLORREF color)
    mat.m_fEdgeAlpha = 1.0f;
    mat.m_fRoughness = 0.9f;
    mat.m_fGlossyImageLerp = 1.0f;
+   mat.m_fThickness = 0.05f;
    mat.m_cClearcoat = 0;
    pd3dDevice->basicShader->SetTechnique(mat.m_bIsMetal ? "basic_without_texture_isMetal" : "basic_without_texture_isNotMetal");
    pd3dDevice->basicShader->SetMaterial(&mat);
@@ -578,6 +581,7 @@ void Light::RenderBulbMesh(RenderDevice *pd3dDevice, COLORREF color)
    mat.m_fEdgeAlpha = 1.0f;
    mat.m_fRoughness = 0.9f;
    mat.m_fGlossyImageLerp = 1.0f;
+   mat.m_fThickness = 0.05f;
    mat.m_cClearcoat = 0xFFFFFF;
    pd3dDevice->basicShader->SetTechnique(mat.m_bIsMetal ? "basic_without_texture_isMetal" : "basic_without_texture_isNotMetal");
    pd3dDevice->basicShader->SetMaterial(&mat);
@@ -1405,14 +1409,14 @@ void Light::FlipX(Vertex2D * const pvCenter)
    IHaveDragPoints::FlipPointX(pvCenter);
 }
 
-void Light::Rotate(float ang, Vertex2D *pvCenter)
+void Light::Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter)
 {
-   IHaveDragPoints::RotatePoints(ang, pvCenter);
+   IHaveDragPoints::RotatePoints(ang, pvCenter, useElementCenter);
 }
 
-void Light::Scale(float scalex, float scaley, Vertex2D *pvCenter)
+void Light::Scale(float scalex, float scaley, Vertex2D *pvCenter, const bool useElementsCenter)
 {
-   IHaveDragPoints::ScalePoints(scalex, scaley, pvCenter);
+   IHaveDragPoints::ScalePoints(scalex, scaley, pvCenter, useElementsCenter);
 }
 
 void Light::Translate(Vertex2D *pvOffset)

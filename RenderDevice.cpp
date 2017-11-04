@@ -524,15 +524,17 @@ RenderDevice::RenderDevice(const HWND hwnd, const int width, const int height, c
    if (FAILED(hr))
       ReportError("Fatal Error: unable to create render buffer!", hr, __FILE__, __LINE__);
 
-   const bool drawBallReflection = ((g_pplayer->m_fReflectionForBalls && (g_pplayer->m_ptable->m_useReflectionForBalls == -1)) || (g_pplayer->m_ptable->m_useReflectionForBalls == 1));
-   if (g_pplayer->m_ptable->m_fReflectElementsOnPlayfield || drawBallReflection)
+   if(g_pplayer != NULL)
    {
-      hr = m_pD3DDevice->CreateTexture(useAA ? 2 * width : width, useAA ? 2 * height : height, 1,
-         D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &m_pMirrorTmpBufferTexture, NULL); //!! D3DFMT_A32B32G32R32F?
-      if (FAILED(hr))
-         ReportError("Fatal Error: unable to create reflection map!", hr, __FILE__, __LINE__);
+       const bool drawBallReflection = ((g_pplayer->m_fReflectionForBalls && (g_pplayer->m_ptable->m_useReflectionForBalls == -1)) || (g_pplayer->m_ptable->m_useReflectionForBalls == 1));
+       if(g_pplayer->m_ptable->m_fReflectElementsOnPlayfield || drawBallReflection)
+       {
+           hr = m_pD3DDevice->CreateTexture(useAA ? 2 * width : width, useAA ? 2 * height : height, 1,
+                                            D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &m_pMirrorTmpBufferTexture, NULL); //!! D3DFMT_A32B32G32R32F?
+           if(FAILED(hr))
+               ReportError("Fatal Error: unable to create reflection map!", hr, __FILE__, __LINE__);
+       }
    }
-
    // alloc bloom tex at 1/3 x 1/3 res (allows for simple HQ downscale of clipped input while saving memory)
    hr = m_pD3DDevice->CreateTexture(width / 3, height / 3, 1,
       D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &m_pBloomBufferTexture, NULL); //!! 8bit enough?
@@ -794,10 +796,12 @@ RenderDevice::~RenderDevice()
    SAFE_RELEASE(m_pOffscreenBackBufferTmpTexture);
    SAFE_RELEASE(m_pOffscreenBackBufferTmpTexture2);
 
-   const bool drawBallReflection = ((g_pplayer->m_fReflectionForBalls && (g_pplayer->m_ptable->m_useReflectionForBalls == -1)) || (g_pplayer->m_ptable->m_useReflectionForBalls == 1));
-   if (g_pplayer->m_ptable->m_fReflectElementsOnPlayfield || drawBallReflection)
-      SAFE_RELEASE(m_pMirrorTmpBufferTexture);
-
+   if(g_pplayer)
+   {
+       const bool drawBallReflection = ((g_pplayer->m_fReflectionForBalls && (g_pplayer->m_ptable->m_useReflectionForBalls == -1)) || (g_pplayer->m_ptable->m_useReflectionForBalls == 1));
+       if(g_pplayer->m_ptable->m_fReflectElementsOnPlayfield || drawBallReflection)
+           SAFE_RELEASE(m_pMirrorTmpBufferTexture);
+   }
    SAFE_RELEASE(m_pBloomBufferTexture);
    SAFE_RELEASE(m_pBloomTmpBufferTexture);
    SAFE_RELEASE(m_pBackBuffer);
@@ -1368,7 +1372,7 @@ void RenderDevice::SetRenderState(const RenderStates p1, DWORD p2)
       renderStateCache[p1] = p2;
    }
 
-   if (p1 == CULLMODE && (g_pplayer->m_ptable->m_tblMirrorEnabled^g_pplayer->m_ptable->m_fReflectionEnabled))
+   if (p1 == CULLMODE && (g_pplayer && (g_pplayer->m_ptable->m_tblMirrorEnabled ^ g_pplayer->m_ptable->m_fReflectionEnabled)))
    {
       if (p2 == D3DCULL_CCW)
          p2 = D3DCULL_CW;
@@ -1601,7 +1605,7 @@ Shader::Shader(RenderDevice *renderDevice)
    for (unsigned int i = 0; i < TEXTURESET_STATE_CACHE_SIZE; ++i)
       currentTexture[i] = 0;
    currentAlphaTestValue = -FLT_MAX;
-   currentDisableLighting = -FLT_MAX;
+   currentDisableLighting =
    currentFlasherData =
    currentFlasherColor =
    currentLightColor =
@@ -1714,7 +1718,7 @@ void Shader::SetTexture(const D3DXHANDLE texelName, D3DTexture *texel)
 void Shader::SetMaterial(const Material * const mat)
 {
    COLORREF cBase, cGlossy, cClearcoat;
-   float fWrapLighting, fRoughness, fGlossyImageLerp, fEdge, fEdgeAlpha, fOpacity;
+   float fWrapLighting, fRoughness, fGlossyImageLerp, fThickness, fEdge, fEdgeAlpha, fOpacity;
    bool bIsMetal, bOpacityActive;
 
    if (mat)
@@ -1722,6 +1726,7 @@ void Shader::SetMaterial(const Material * const mat)
       fWrapLighting = mat->m_fWrapLighting;
       fRoughness = exp2f(10.0f * mat->m_fRoughness + 1.0f); // map from 0..1 to 2..2048
       fGlossyImageLerp = mat->m_fGlossyImageLerp;
+      fThickness = mat->m_fThickness;
       fEdge = mat->m_fEdge;
       fEdgeAlpha = mat->m_fEdgeAlpha;
       fOpacity = mat->m_fOpacity;
@@ -1736,6 +1741,7 @@ void Shader::SetMaterial(const Material * const mat)
       fWrapLighting = 0.0f;
       fRoughness = exp2f(10.0f * 0.0f + 1.0f); // map from 0..1 to 2..2048
       fGlossyImageLerp = 1.0f;
+      fThickness = 0.05f;
       fEdge = 1.0f;
       fEdgeAlpha = 1.0f;
       fOpacity = 1.0f;
@@ -1749,14 +1755,16 @@ void Shader::SetMaterial(const Material * const mat)
    // bIsMetal is nowadays handled via a separate technique! (so not in here)
 
    if (fRoughness != currentMaterial.m_fRoughness ||
-      fEdge != currentMaterial.m_fEdge ||
-      fWrapLighting != currentMaterial.m_fWrapLighting)
+       fEdge != currentMaterial.m_fEdge ||
+       fWrapLighting != currentMaterial.m_fWrapLighting ||
+       fThickness != currentMaterial.m_fThickness)
    {
-      const D3DXVECTOR4 rwem(fRoughness, fWrapLighting, fEdge, 0.f);
-      SetVector("Roughness_WrapL_Edge", &rwem);
+      const D3DXVECTOR4 rwem(fRoughness, fWrapLighting, fEdge, fThickness);
+      SetVector("Roughness_WrapL_Edge_Thickness", &rwem);
       currentMaterial.m_fRoughness = fRoughness;
       currentMaterial.m_fWrapLighting = fWrapLighting;
       currentMaterial.m_fEdge = fEdge;
+      currentMaterial.m_fThickness = fThickness;
    }
 
    const float alpha = bOpacityActive ? fOpacity : 1.0f;

@@ -290,7 +290,7 @@ public:
    PinTable();
    virtual ~PinTable();
 
-   void Init(VPinball *pvp);
+   void Init(VPinball *pvp, const bool useBlankTable=false);
    void InitPostLoad(VPinball *pvp);
 
    virtual HRESULT GetTypeName(BSTR *pVal);
@@ -375,8 +375,8 @@ public:
    virtual void PutCenter(const Vertex2D * const pv);
    virtual void FlipY(Vertex2D * const pvCenter);
    virtual void FlipX(Vertex2D * const pvCenter);
-   virtual void Rotate(float ang, Vertex2D *pvCenter);
-   virtual void Scale(float scalex, float scaley, Vertex2D *pvCenter);
+   virtual void Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter = false);
+   virtual void Scale(float scalex, float scaley, Vertex2D *pvCenter, const bool useElementsCenter=false);
    virtual void Translate(Vertex2D *pvOffset);
 
    // IEditable (mostly bogus for now)
@@ -399,6 +399,7 @@ public:
    void DoLButtonDown(int x, int y, bool zoomIn = true);
    void DoLButtonUp(int x, int y);
    void DoRButtonDown(int x, int y);
+   void FillCollectionContextMenu(HMENU hmenu, HMENU colSubMenu, ISelect *psel);
    void DoRButtonUp(int x, int y);
    void DoMouseMove(int x, int y);
    void DoLDoubleClick(int x, int y);
@@ -504,7 +505,7 @@ public:
    void RestoreLayers();
    void BackupLayers();
    void DeleteFromLayer(IEditable *obj);
-   void AddToCollection(int index);
+   void UpdateCollection(int index);
    void MoveCollectionUp(CComObject<Collection> *pcol);
    void MoveCollectionDown(CComObject<Collection> *pcol);
 
@@ -752,7 +753,7 @@ public:
    bool  m_fReflectElementsOnPlayfield;
    bool  m_fReflectionEnabled;
 
-   vector<Material*> dbgChangedMaterials;
+   vector<Material*> m_dbgChangedMaterials;
 
    struct DebugLightData
    {
@@ -769,7 +770,7 @@ public:
        LightState lightstate;
    };
 
-   vector<DebugLightData*> dbgChangedLights;
+   vector<DebugLightData*> m_dbgChangedLights;
    float m_backupInclination;
    float m_backupFOV;
    float m_backupRotation;

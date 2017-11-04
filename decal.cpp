@@ -14,7 +14,11 @@ Decal::Decal()
    memset(m_d.m_szImage, 0, MAXTOKEN);
    memset(m_d.m_szMaterial, 0, 32);
    memset(m_d.m_szSurface, 0, MAXTOKEN);
-
+   m_ptable = NULL;
+   m_leading = 0.0f;
+   m_descent = 0.0f;
+   m_realheight = 0.0f;
+   m_realwidth = 0.0f;
 }
 
 Decal::~Decal()
@@ -632,9 +636,9 @@ void Decal::PutCenter(const Vertex2D * const pv)
    m_ptable->SetDirtyDraw();
 }
 
-void Decal::Rotate(float ang, Vertex2D *pvCenter)
+void Decal::Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter)
 {
-   ISelect::Rotate(ang, pvCenter);
+   ISelect::Rotate(ang, pvCenter, useElementCenter);
 
    m_d.m_rotation += ang;
 }

@@ -35,6 +35,7 @@ SmartBrowser::SmartBrowser()
    m_pvsel = NULL;
    m_maxdialogwidth = 20;
    m_szHeaderCollection[0] = 0;
+   InitializeCriticalSection(&m_hPropertyLock);
 }
 
 SmartBrowser::~SmartBrowser()
@@ -49,6 +50,7 @@ SmartBrowser::~SmartBrowser()
    DeleteObject(m_hfontHeader);
 
    FreePropPanes();
+   DeleteCriticalSection(&m_hPropertyLock);
 }
 
 void SmartBrowser::Init(HWND hwndParent)
@@ -143,6 +145,7 @@ void SmartBrowser::CreateFromDispatch(HWND hwndParent, VectorProtected<ISelect> 
    char colName[64] = { 0 };
    Collection *col = NULL;
 
+   EnterCriticalSection(&m_hPropertyLock);
    if (pvsel != NULL)
    {
       ItemTypeEnum maintype = pvsel->ElementAt(0)->GetItemType();
@@ -213,7 +216,10 @@ void SmartBrowser::CreateFromDispatch(HWND hwndParent, VectorProtected<ISelect> 
          }
       }
       if (fSame)
+      {
+         LeaveCriticalSection(&m_hPropertyLock);
          return;
+      }
    }
 
    m_olddialog = propID;
@@ -251,6 +257,7 @@ void SmartBrowser::CreateFromDispatch(HWND hwndParent, VectorProtected<ISelect> 
    {
       m_szHeader[0] = '\0';
       InvalidateRect(m_hwndFrame, NULL, fTrue);
+      LeaveCriticalSection(&m_hPropertyLock);
       return;
    }
 
@@ -370,12 +377,16 @@ void SmartBrowser::CreateFromDispatch(HWND hwndParent, VectorProtected<ISelect> 
             pisel2->UpdatePropertyPanes();
       }
    }
+   LeaveCriticalSection(&m_hPropertyLock);
 
 }
 
 BOOL CALLBACK EnumChildInitList(HWND hwnd, LPARAM lParam)
 {
    SmartBrowser *const psb = (SmartBrowser *)lParam;
+
+   if (psb == NULL)
+      return FALSE;
 
    char szName[256];
    GetClassName(hwnd, szName, 256);
@@ -396,6 +407,9 @@ BOOL CALLBACK EnumChildInitList(HWND hwnd, LPARAM lParam)
       CADWORD        cadw;
       IPerPropertyBrowsing *pippb;
       char szT[512];
+
+      if (psb->GetBaseIDisp() == NULL)
+         return FALSE;
 
       psb->GetBaseIDisp()->QueryInterface(IID_IPerPropertyBrowsing, (void **)&pippb);
 
@@ -573,8 +587,10 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
    char szName[256];
    GetClassName(hwndControl, szName, 256);
    IDispatch * const pdisp = GetBaseIDisp();
-
    int type = eNotControl;
+
+   if (pdisp == NULL)
+      return;
 
    if (!strcmp(szName, "Edit"))
    {
@@ -850,6 +866,9 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
 
 void SmartBrowser::SetProperty(int dispid, VARIANT *pvar, BOOL fPutRef)
 {
+   if (m_pvsel == NULL)
+      return;
+
    DISPID mydispid = DISPID_PROPERTYPUT;
    DISPPARAMS disp;
    disp.cNamedArgs = 1;
@@ -897,7 +916,7 @@ void SmartBrowser::RelayoutExpandos()
    {
       HWND hwndExpand = m_vhwndExpand[i];
       ExpandoInfo *pexinfo = (ExpandoInfo *)GetWindowLongPtr(hwndExpand, GWLP_USERDATA);
-      if (pexinfo->m_fExpanded)
+      if (pexinfo && pexinfo->m_fExpanded)
          totalheight += pexinfo->m_dialogheight;
       totalheight += EXPANDOHEIGHT;
    }
@@ -1055,6 +1074,11 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
          dispid = 0x80010000;
 
       SmartBrowser * const psb = (SmartBrowser *)GetWindowLongPtr(hwndDlg, GWLP_USERDATA);
+      if (psb==NULL)
+      {
+         return FALSE;
+      }
+
       //IDispatch *pdisp = psb->m_pdisp;
       switch (code)
       {
@@ -1149,8 +1173,11 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
             psb->SetProperty(dispid, &var, fFalse);
             psb->GetControlValue((HWND)lParam);
          }
+         EnterCriticalSection(&psb->m_hPropertyLock);
          for (int i = 0; i < psb->m_pvsel->Size(); i++)
             psb->m_pvsel->ElementAt(i)->UpdatePropertyPanes();
+         LeaveCriticalSection(&psb->m_hPropertyLock);
+
       }
       break;
 
@@ -1182,8 +1209,11 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 
          //SendMessage((HWND)lParam, WM_SETTEXT, 0, (LPARAM)"Foo"/*szT*/);
          psb->GetControlValue((HWND)lParam);
+
+         EnterCriticalSection(&psb->m_hPropertyLock);
          for (int i = 0; i < psb->m_pvsel->Size(); i++)
             psb->m_pvsel->ElementAt(i)->UpdatePropertyPanes();
+         LeaveCriticalSection(&psb->m_hPropertyLock);
       }
       break;
 

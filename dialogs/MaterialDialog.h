@@ -22,6 +22,8 @@ private:
    void SavePosition();
    HWND m_hMaterialList;
    CResizer m_resizer;
+   static int m_columnSortOrder;
+   static bool m_deletingItem;
 };
 
 #endif // !H_MATERIAL_DIALOG

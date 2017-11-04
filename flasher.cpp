@@ -12,6 +12,13 @@ Flasher::Flasher()
    m_propVisual = NULL;
    memset(m_d.m_szImageA, 0, MAXTOKEN);
    memset(m_d.m_szImageB, 0, MAXTOKEN);
+   m_ptable = NULL;
+   numVertices = 0;
+   numPolys = 0;
+   minx = FLT_MAX;
+   maxx = FLT_MIN;
+   miny = FLT_MAX;
+   maxy = FLT_MIN;
 }
 
 Flasher::~Flasher()
@@ -502,14 +509,14 @@ void Flasher::FlipX(Vertex2D * const pvCenter)
    IHaveDragPoints::FlipPointX(pvCenter);
 }
 
-void Flasher::Rotate(float ang, Vertex2D *pvCenter)
+void Flasher::Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter)
 {
-   IHaveDragPoints::RotatePoints(ang, pvCenter);
+   IHaveDragPoints::RotatePoints(ang, pvCenter, useElementCenter);
 }
 
-void Flasher::Scale(float scalex, float scaley, Vertex2D *pvCenter)
+void Flasher::Scale(float scalex, float scaley, Vertex2D *pvCenter, const bool useElementsCenter)
 {
-   IHaveDragPoints::ScalePoints(scalex, scaley, pvCenter);
+   IHaveDragPoints::ScalePoints(scalex, scaley, pvCenter, useElementsCenter);
 }
 
 void Flasher::Translate(Vertex2D *pvOffset)

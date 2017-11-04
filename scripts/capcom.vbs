@@ -52,16 +52,14 @@ End Sub
 Set vpmShowDips = GetRef("CapcomShowDips")
 Private vpmDips
 
-
 ' Keyboard handlers
 Function vpmKeyDown(ByVal keycode)
 	On Error Resume Next
 	vpmKeyDown = True ' assume we handle the key
 	With Controller
-		If keycode = RightFlipperKey Then .Switch(swLRFlip) = True
-		If keycode = LeftFlipperKey  Then .Switch(swLLFlip) = True
-
 		Select Case keycode
+			Case RightFlipperKey .Switch(swLRFlip) = True : vpmKeyDown = False
+			Case LeftFlipperKey  .Switch(swLLFlip) = True : vpmKeyDown = False
 			Case keyInsertCoin1  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin1'" : Playsound SCoin
 			Case keyInsertCoin2  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin2'" : Playsound SCoin
 			Case keyInsertCoin3  vpmTimer.AddTimer 750,"vpmTimer.PulseSw swCoin3'" : Playsound SCoin
@@ -84,10 +82,9 @@ Function vpmKeyUp(ByVal keycode)
 	On Error Resume Next
 	vpmKeyUp = True ' assume we handle the key
 	With Controller
-		If keycode = RightFlipperKey Then .Switch(swLRFlip) = False
-		If keycode = LeftFlipperKey  Then .Switch(swLLFlip) = False	
-
 		Select Case keycode
+			Case RightFlipperKey .Switch(swLRFlip) = False : vpmKeyUp = False
+			Case LeftFlipperKey  .Switch(swLLFlip) = False : vpmKeyUp = False
 			Case StartGameKey    .Switch(swStartButton) = False
 			Case keySlamDoorHit  .Switch(swSlamTilt)    = False
 			Case keyShowOpts     .Pause = True : .ShowOptsDialog GetPlayerHWnd : .Pause = False
@@ -102,5 +99,3 @@ Function vpmKeyUp(ByVal keycode)
 	End With
 	On Error Goto 0
 End Function
-
-

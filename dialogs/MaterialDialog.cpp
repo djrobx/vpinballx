@@ -18,15 +18,18 @@ typedef struct _tagSORTDATA
 }SORTDATA;
 
 extern SORTDATA SortData;
-extern int columnSortOrder[4];
 extern int CALLBACK MyCompProc( LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOption );
+
+int MaterialDialog::m_columnSortOrder;
+bool MaterialDialog::m_deletingItem;
 
 void MaterialDialog::DisableAllMaterialDialogItems()
 {
-    ::EnableWindow( GetDlgItem( IDC_DIFFUSE_CHECK ).GetHwnd(), FALSE );
+    ::EnableWindow(GetDlgItem( IDC_DIFFUSE_CHECK ).GetHwnd(), FALSE);
     ::EnableWindow(GetDlgItem(IDC_DIFFUSE_EDIT).GetHwnd(), FALSE);
     ::EnableWindow(GetDlgItem(IDC_GLOSSY_EDIT).GetHwnd(), FALSE);
     ::EnableWindow(GetDlgItem(IDC_GLOSSY_IMGLERP_EDIT).GetHwnd(), FALSE);
+    ::EnableWindow(GetDlgItem(IDC_THICKNESS_EDIT).GetHwnd(), FALSE);
     ::EnableWindow(GetDlgItem(IDC_SPECULAR_EDIT).GetHwnd(), FALSE);
     ::EnableWindow(GetDlgItem(IDC_OPACITY_EDIT).GetHwnd(), FALSE);
     ::EnableWindow(GetDlgItem(IDC_OPACITY_CHECK).GetHwnd(), FALSE);
@@ -42,6 +45,7 @@ void MaterialDialog::EnableAllMaterialDialogItems()
    ::EnableWindow(GetDlgItem(IDC_DIFFUSE_EDIT).GetHwnd(), TRUE);
    ::EnableWindow(GetDlgItem(IDC_GLOSSY_EDIT).GetHwnd(), TRUE);
    ::EnableWindow(GetDlgItem(IDC_GLOSSY_IMGLERP_EDIT).GetHwnd(), TRUE);
+   ::EnableWindow(GetDlgItem(IDC_THICKNESS_EDIT).GetHwnd(), TRUE);
    ::EnableWindow(GetDlgItem(IDC_SPECULAR_EDIT).GetHwnd(), TRUE);
    ::EnableWindow(GetDlgItem(IDC_OPACITY_EDIT).GetHwnd(), TRUE);
    ::EnableWindow(GetDlgItem(IDC_OPACITY_CHECK).GetHwnd(), TRUE);
@@ -79,6 +83,8 @@ BOOL MaterialDialog::OnInitDialog()
    m_hMaterialList = GetDlgItem(IDC_MATERIAL_LIST).GetHwnd();
    CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
 
+   m_columnSortOrder = 1;
+   m_deletingItem = false;
    m_resizer.Initialize(*this, CRect(0, 0, 500, 600));
    m_resizer.AddChild(m_hMaterialList, topleft, RD_STRETCH_WIDTH | RD_STRETCH_HEIGHT);
    m_resizer.AddChild(GetDlgItem(IDC_DIFFUSE_CHECK).GetHwnd(), topright, 0);
@@ -96,8 +102,11 @@ BOOL MaterialDialog::OnInitDialog()
    m_resizer.AddChild(GetDlgItem(IDC_STATIC_GLOSSY_TEXT).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_STATIC_SHININESS).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_STATIC_GLOSSY_IMGLERP).GetHwnd(), topright, 0);
+   m_resizer.AddChild(GetDlgItem(IDC_STATIC_THICKNESS).GetHwnd(), topright, 0);
+   m_resizer.AddChild(GetDlgItem(IDC_STATIC_THICKNESS_TEXT).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_GLOSSY_EDIT).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_GLOSSY_IMGLERP_EDIT).GetHwnd(), topright, 0);
+   m_resizer.AddChild(GetDlgItem(IDC_THICKNESS_EDIT).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_STATIC_SHININESS_TEXT).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_STATIC_CLEARCOAT_TEXT).GetHwnd(), topright, 0);
    m_resizer.AddChild(GetDlgItem(IDC_STATIC_EDGE_BRIGHTNESS).GetHwnd(), topright, 0);
@@ -131,10 +140,16 @@ BOOL MaterialDialog::OnInitDialog()
    lvcol.mask = LVCF_TEXT | LVCF_WIDTH;
    LocalString ls(IDS_NAME);
    lvcol.pszText = ls.m_szbuffer;// = "Name";
-   lvcol.cx = 280;
+   lvcol.cx = 230;
    ListView_InsertColumn(m_hMaterialList, 0, &lvcol);
 
+   lvcol.mask = LVCF_TEXT | LVCF_WIDTH;
+   LocalString ls2(IDS_USED_IN_TABLE);
+   lvcol.pszText = ls2.m_szbuffer;// = "Used in Table";
+   lvcol.cx = 50;
+   ListView_InsertColumn(m_hMaterialList, 1, &lvcol);
    pt->ListMaterials(m_hMaterialList);
+
    ListView_SetItemState(m_hMaterialList, 0, LVIS_SELECTED, LVIS_SELECTED)
    
    return TRUE;
@@ -210,6 +225,7 @@ BOOL MaterialDialog::OnCommand(WPARAM wParam, LPARAM lParam)
                pNewMat->m_fOpacity = pmat->m_fOpacity;
                pNewMat->m_fRoughness = pmat->m_fRoughness;
                pNewMat->m_fGlossyImageLerp = pmat->m_fGlossyImageLerp;
+               pNewMat->m_fThickness = pmat->m_fThickness;
                pNewMat->m_fWrapLighting = pmat->m_fWrapLighting;
                memcpy(pNewMat->m_szName, pmat->m_szName, 32);
 
@@ -291,6 +307,7 @@ BOOL MaterialDialog::OnCommand(WPARAM wParam, LPARAM lParam)
                pmat->m_fWrapLighting = mat.fWrapLighting;
                pmat->m_fRoughness = mat.fRoughness;
                pmat->m_fGlossyImageLerp = dequantizeUnsigned<8>(mat.fGlossyImageLerp);
+               pmat->m_fThickness = dequantizeUnsigned<8>(mat.fThickness);
                pmat->m_fEdge = mat.fEdge;
                pmat->m_bIsMetal = mat.bIsMetal;
                pmat->m_fOpacity = mat.fOpacity;
@@ -382,13 +399,13 @@ BOOL MaterialDialog::OnCommand(WPARAM wParam, LPARAM lParam)
                   mat.cClearcoat = pmat->m_cClearcoat;
                   mat.fRoughness = pmat->m_fRoughness;
                   mat.fGlossyImageLerp = quantizeUnsigned<8>(clamp(pmat->m_fGlossyImageLerp, 0.f, 1.f));
+                  mat.fThickness = quantizeUnsigned<8>(clamp(pmat->m_fThickness, 0.f, 1.f));
                   mat.fEdge = pmat->m_fEdge;
                   mat.fWrapLighting = pmat->m_fWrapLighting;
                   mat.bIsMetal = pmat->m_bIsMetal;
                   mat.fOpacity = pmat->m_fOpacity;
                   mat.bOpacityActive_fEdgeAlpha = pmat->m_bOpacityActive ? 1 : 0;
                   mat.bOpacityActive_fEdgeAlpha |= quantizeUnsigned<7>(clamp(pmat->m_fEdgeAlpha, 0.f, 1.f)) << 1;
-                  mat.bUnused2 = 0;
                   memcpy(mat.szName, pmat->m_szName, 32);
                   fwrite(&mat, 1, sizeof(SaveMaterial), f);
                   fwrite(&pmat->m_fElasticity, 1, sizeof(float), f);
@@ -413,7 +430,9 @@ BOOL MaterialDialog::OnCommand(WPARAM wParam, LPARAM lParam)
             const int ans = MessageBox(ls.m_szbuffer/*"Are you sure you want to remove this material?"*/, "Visual Pinball", MB_YESNO | MB_DEFBUTTON2);
             if (ans == IDYES)
             {
+               m_deletingItem = true;
                int sel = ListView_GetNextItem(m_hMaterialList, -1, LVNI_SELECTED);
+               int firstSelectedItemIdx = sel;
                while (sel != -1)
                {
                   LVITEM lvitem;
@@ -426,19 +445,21 @@ BOOL MaterialDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 
                   pt->RemoveMaterial(pmat);
 
-                  int newCount = ListView_GetItemCount(m_hMaterialList);
-                  int selectedCount = ListView_GetSelectedCount(m_hMaterialList);
-                  if (newCount > 0 && selectedCount == 0)
-                  {
-                     if (sel >= newCount) sel = 0;
-                     // The previous selection is now deleted, so look again from the top of the list
-                     ListView_SetItemState(m_hMaterialList, sel, LVIS_FOCUSED | LVIS_SELECTED, 0x00F);
-                     sel = -1;
-                  }
-                  else
-                  {
-                     sel = ListView_GetNextItem(m_hMaterialList, -1, LVNI_SELECTED);
-                  }
+                  sel = ListView_GetNextItem(m_hMaterialList, -1, LVNI_SELECTED);
+               }
+
+               m_deletingItem = false;
+               int newCount = ListView_GetItemCount(m_hMaterialList);
+               int selectedCount = ListView_GetSelectedCount(m_hMaterialList);
+               if(newCount > 0 && selectedCount == 0)
+               {
+                   if(firstSelectedItemIdx >= newCount) firstSelectedItemIdx = 0;
+                   // The previous selection is now deleted, so look again from the top of the list
+                   ListView_SetItemState(m_hMaterialList, firstSelectedItemIdx, LVIS_FOCUSED | LVIS_SELECTED, 0x00F);
+               }
+               else
+               {
+                   ListView_GetNextItem(m_hMaterialList, -1, LVNI_SELECTED);
                }
             }
             pt->SetNonUndoableDirty(eSaveDirty);
@@ -473,13 +494,13 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (lpnmListView->hdr.code == LVN_COLUMNCLICK)
             {
                const int columnNumber = lpnmListView->iSubItem;
-               if (columnSortOrder[columnNumber] == 1)
-                  columnSortOrder[columnNumber] = 0;
+               if (m_columnSortOrder == 1)
+                  m_columnSortOrder = 0;
                else
-                  columnSortOrder[columnNumber] = 1;
+                  m_columnSortOrder = 1;
                SortData.hwndList = m_hMaterialList;
                SortData.subItemIndex = columnNumber;
-               SortData.sortUpDown = columnSortOrder[columnNumber];
+               SortData.sortUpDown = m_columnSortOrder;
                ListView_SortItems(SortData.hwndList, MyCompProc, &SortData);
             }
          }
@@ -522,6 +543,9 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             case LVN_ITEMCHANGING:
             {
+               if(m_deletingItem)
+                   break;
+
                const int count = ListView_GetSelectedCount(m_hMaterialList);
                if (count > 1)
                {
@@ -551,6 +575,7 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                      setItemText(IDC_DIFFUSE_EDIT, pmat->m_fWrapLighting);
                      setItemText(IDC_GLOSSY_EDIT, pmat->m_fRoughness);
                      setItemText(IDC_GLOSSY_IMGLERP_EDIT, pmat->m_fGlossyImageLerp);
+                     setItemText(IDC_THICKNESS_EDIT, pmat->m_fThickness);
                      setItemText(IDC_SPECULAR_EDIT, pmat->m_fEdge);
                      setItemText(IDC_OPACITY_EDIT, pmat->m_fOpacity);
                      setItemText(IDC_EDGEALPHA_EDIT, pmat->m_fEdgeAlpha);
@@ -574,6 +599,8 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                const int count = ListView_GetSelectedCount(m_hMaterialList);
 
+               if(m_deletingItem)
+                   break;
                if (count > 1)
                {
                   DisableAllMaterialDialogItems();
@@ -591,23 +618,27 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                if ((plistview->uNewState & LVIS_SELECTED) == 0)
                {
                   float fv;
-                  fv = getItemText(IDC_DIFFUSE_EDIT);
+                  fv = saturate(getItemText(IDC_DIFFUSE_EDIT));
                   if (pmat->m_fWrapLighting != fv)
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_fWrapLighting = fv;
-                  fv = getItemText(IDC_GLOSSY_EDIT);
+                  fv = saturate(getItemText(IDC_GLOSSY_EDIT));
                   if (pmat->m_fRoughness != fv)
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_fRoughness = fv;
-                  fv = getItemText(IDC_GLOSSY_IMGLERP_EDIT);
+                  fv = saturate(getItemText(IDC_GLOSSY_IMGLERP_EDIT));
                   if (pmat->m_fGlossyImageLerp != fv)
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_fGlossyImageLerp = fv;
-                  fv = getItemText(IDC_SPECULAR_EDIT);
+                  fv = saturate(getItemText(IDC_THICKNESS_EDIT));
+                  if (pmat->m_fThickness != fv)
+                     pt->SetNonUndoableDirty(eSaveDirty);
+                  pmat->m_fThickness = fv;
+                  fv = saturate(getItemText(IDC_SPECULAR_EDIT));
                   if (pmat->m_fEdge != fv)
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_fEdge = fv;
-                  fv = getItemText(IDC_OPACITY_EDIT);
+                  fv = saturate(getItemText(IDC_OPACITY_EDIT));
                   if (pmat->m_fOpacity != fv)
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_fOpacity = fv;
@@ -619,7 +650,7 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (pmat->m_bOpacityActive != (checked == 1))
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_bOpacityActive = checked == 1;
-                  fv = getItemText(IDC_EDGEALPHA_EDIT);
+                  fv = saturate(getItemText(IDC_EDGEALPHA_EDIT));
                   if (pmat->m_fEdgeAlpha != fv)
                      pt->SetNonUndoableDirty(eSaveDirty);
                   pmat->m_fEdgeAlpha = fv;
@@ -652,6 +683,7 @@ INT_PTR MaterialDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                   setItemText(IDC_DIFFUSE_EDIT, pmat->m_fWrapLighting);
                   setItemText(IDC_GLOSSY_EDIT, pmat->m_fRoughness);
                   setItemText(IDC_GLOSSY_IMGLERP_EDIT, pmat->m_fGlossyImageLerp);
+                  setItemText(IDC_THICKNESS_EDIT, pmat->m_fThickness);
                   setItemText(IDC_SPECULAR_EDIT, pmat->m_fEdge);
                   setItemText(IDC_OPACITY_EDIT, pmat->m_fOpacity);
 
@@ -723,6 +755,11 @@ void MaterialDialog::OnOK()
          if (pmat->m_fGlossyImageLerp != fv)
             pt->SetNonUndoableDirty(eSaveDirty);
          pmat->m_fGlossyImageLerp = fv;
+
+         fv = getItemText(IDC_THICKNESS_EDIT);
+         if (pmat->m_fThickness != fv)
+            pt->SetNonUndoableDirty(eSaveDirty);
+         pmat->m_fThickness = fv;
 
          fv = getItemText(IDC_SPECULAR_EDIT);
          if (pmat->m_fEdge != fv)

@@ -106,6 +106,50 @@ static pGPI GetPointerInfo = NULL;
 
 #define GET_POINTERID_WPARAM(wParam) (LOWORD (wParam))
 
+#define NID_READY 0x00000080
+#define NID_MULTI_INPUT 0x00000040
+
+#define SM_DIGITIZER 94
+#define SM_MAXIMUMTOUCHES 95
+
+typedef BOOL(WINAPI *pUnregisterTouchWindow)(HWND hWnd);
+static pUnregisterTouchWindow UnregisterTouchWindow = NULL;
+
+#if 0 // useful if supporting 'real' WM_TOUCH messages
+typedef BOOL(WINAPI *pIsTouchWindow)(HWND hwnd, PULONG pulFlags);
+static pIsTouchWindow IsTouchWindow = NULL;
+
+typedef BOOL(WINAPI *pRegisterTouchWindow)(HWND hWnd, ULONG ulFlags);
+static pRegisterTouchWindow RegisterTouchWindow = NULL;
+
+#define MICROSOFT_TABLETPENSERVICE_PROPERTY _T("MicrosoftTabletPenServiceProperty")
+#define TABLET_DISABLE_PRESSANDHOLD        0x00000001
+#define TABLET_DISABLE_PENTAPFEEDBACK      0x00000008
+#define TABLET_DISABLE_PENBARRELFEEDBACK   0x00000010
+#define TABLET_DISABLE_TOUCHUIFORCEON      0x00000100
+#define TABLET_DISABLE_TOUCHUIFORCEOFF     0x00000200
+#define TABLET_DISABLE_TOUCHSWITCH         0x00008000
+#define TABLET_DISABLE_FLICKS              0x00010000
+#define TABLET_ENABLE_FLICKSONCONTEXT      0x00020000
+#define TABLET_ENABLE_FLICKLEARNINGMODE    0x00040000
+#define TABLET_DISABLE_SMOOTHSCROLLING     0x00080000
+#define TABLET_DISABLE_FLICKFALLBACKKEYS   0x00100000
+#define TABLET_ENABLE_MULTITOUCHDATA       0x01000000
+
+#define GC_ALLGESTURES                              0x00000001
+
+typedef struct tagGESTURECONFIG {
+	DWORD dwID;                     // gesture ID
+	DWORD dwWant;                   // settings related to gesture ID that are to be turned on
+	DWORD dwBlock;                  // settings related to gesture ID that are to be turned off
+} GESTURECONFIG, *PGESTURECONFIG;
+
+typedef BOOL(WINAPI *pSetGestureConfig)(HWND hwnd, DWORD dwReserved, UINT cIDs, PGESTURECONFIG pGestureConfig, UINT cbSize);
+static pSetGestureConfig SetGestureConfig = NULL;
+#endif
+
+//
+
 const RECT touchregion[8] = { //left,top,right,bottom (in % of screen)
    { 0, 0, 50, 10 },      // ExtraBall
    { 0, 10, 50, 50 },     // 2nd Left Button
@@ -1059,8 +1103,8 @@ void Player::InitBallShader()
    //ballShader->SetInt("iLightPointNum",MAX_LIGHT_SOURCES);
 
    const float Roughness = 0.8f;
-   const D3DXVECTOR4 rwem(exp2f(10.0f * Roughness + 1.0f), 0.f, 1.f, 0.f);
-   ballShader->SetVector("Roughness_WrapL_Edge", &rwem);
+   const D3DXVECTOR4 rwem(exp2f(10.0f * Roughness + 1.0f), 0.f, 1.f, 0.05f);
+   ballShader->SetVector("Roughness_WrapL_Edge_Thickness", &rwem);
 
    Texture * const playfield = m_ptable->GetImage((char *)m_ptable->m_szImage);
    if (playfield)
@@ -2092,6 +2136,52 @@ void Player::InitWindow()
    }
 #else
    #pragma message ( "Warning: Missing LockSetForegroundWindow()" )
+#endif
+
+   // Check for Touch support
+   m_supportsTouch = ((GetSystemMetrics(SM_DIGITIZER) & NID_READY) != 0) && ((GetSystemMetrics(SM_DIGITIZER) & NID_MULTI_INPUT) != 0)
+                   && (GetSystemMetrics(SM_MAXIMUMTOUCHES) != 0);
+
+#if 1 // we do not want to handle WM_TOUCH
+   if (!UnregisterTouchWindow)
+      UnregisterTouchWindow = (pUnregisterTouchWindow)GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "UnregisterTouchWindow");
+   if (UnregisterTouchWindow)
+      UnregisterTouchWindow(m_hwnd);
+#else // would be useful if handling WM_TOUCH instead of WM_POINTERDOWN
+   // Disable palm detection
+   if (!RegisterTouchWindow)
+      RegisterTouchWindow = (pRegisterTouchWindow)GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "RegisterTouchWindow");
+   if (RegisterTouchWindow)
+      RegisterTouchWindow(m_hwnd, 0);
+
+   if (!IsTouchWindow)
+       IsTouchWindow = (pIsTouchWindow)GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "IsTouchWindow");
+
+   // Disable Gesture Detection
+   if (!SetGestureConfig)
+      SetGestureConfig = (pSetGestureConfig)GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "SetGestureConfig");
+   if (SetGestureConfig)
+   {
+      // http://msdn.microsoft.com/en-us/library/ms812373.aspx
+      const DWORD dwHwndTabletProperty =
+         TABLET_DISABLE_PRESSANDHOLD |      // disables press and hold (right-click) gesture  
+         TABLET_DISABLE_PENTAPFEEDBACK |    // disables UI feedback on pen up (waves)  
+         TABLET_DISABLE_PENBARRELFEEDBACK | // disables UI feedback on pen button down  
+         TABLET_DISABLE_FLICKS;             // disables pen flicks (back, forward, drag down, drag up)   
+      LPCTSTR tabletAtom = MICROSOFT_TABLETPENSERVICE_PROPERTY;
+
+      // Get the Tablet PC atom ID
+      const ATOM atomID = GlobalAddAtom(tabletAtom);
+      if (atomID)
+      {
+         // Try to disable press and hold gesture 
+         SetProp(m_hwnd, tabletAtom, (HANDLE)dwHwndTabletProperty);
+      }
+      // Gesture configuration
+      GESTURECONFIG gc[] = { 0, 0, GC_ALLGESTURES };
+      UINT uiGcs = 1;
+      const BOOL bResult = SetGestureConfig(m_hwnd, 0, uiGcs, gc, sizeof(GESTURECONFIG));
+   }
 #endif
 
    // Disable visual feedback for touch, this saves one frame of latency on touchdisplays
@@ -3694,7 +3784,18 @@ void Player::UpdateHUD()
 	{
 		char szFoo[256];
 		const int len2 = sprintf_s(szFoo, "3D Stereo is enabled but currently toggled off, press F10 to toggle 3D Stereo on");
-		DebugPrint(m_width / 2 - 320, 10, szFoo, (int)strlen(szFoo), true);
+		DebugPrint(m_width / 2 - 320, 10, szFoo, len2, true);
+	}
+
+	if (!m_fCloseDown && m_supportsTouch && (usec() < m_StartTime_usec + 12e+6)) // show for max. 12 seconds
+	{
+		char szFoo[256];
+		int len2 = sprintf_s(szFoo, "You can use Touch controls on this display: bottom left area to Start Game, bottom right area to use the Plunger");
+		DebugPrint(m_width / 2 - 440, 40, szFoo, len2, true);
+		len2 = sprintf_s(szFoo, "lower left/right for Flippers, upper left/right for Magna buttons, top left for Credits and (hold) top right to Exit");
+		DebugPrint(m_width / 2 - 440, 70, szFoo, len2, true);
+
+		//!! visualize with real buttons or at least the areas??
 	}
 
 #ifdef FPS
@@ -3709,7 +3810,7 @@ void Player::UpdateHUD()
 
 		// Draw the framerate.
 		const float fpsAvg = (m_fpsCount == 0) ? 0.0f : m_fpsAvg / m_fpsCount;
-		const int len2 = sprintf_s(szFoo, "FPS: %.1f (%.1f avg)  Display %s Objects (%uk/%uk Triangles)  DayNight %d%%", m_fps+0.01f, fpsAvg+0.01f, RenderStaticOnly() ? "only static" : "all", (m_pin3d.m_pd3dDevice->m_stats_drawn_triangles + 999) / 1000, (stats_drawn_static_triangles + m_pin3d.m_pd3dDevice->m_stats_drawn_triangles + 999) / 1000, quantizeSignedPercent(m_globalEmissionScale));
+		const int len2 = sprintf_s(szFoo, "FPS: %.1f (%.1f avg)  Display %s Objects (%uk/%uk Triangles)  DayNight %d%%", m_fps+0.01f, fpsAvg+0.01f, RenderStaticOnly() ? "only static" : "all", (m_pin3d.m_pd3dDevice->m_stats_drawn_triangles + 999) / 1000, (stats_drawn_static_triangles + m_pin3d.m_pd3dDevice->m_stats_drawn_triangles + 999) / 1000, quantizeUnsignedPercent(m_globalEmissionScale));
 		DebugPrint(10, 10, szFoo, len2);
 
 		const U32 period = m_lastFrameDuration;
@@ -4797,8 +4898,8 @@ void Player::DrawBalls()
 		  const float dist = Vertex3Ds(light_nearest[0]->m_d.m_vCenter.x - pball->m_pos.x, light_nearest[0]->m_d.m_vCenter.y - pball->m_pos.y, light_nearest[0]->m_d.m_meshRadius + light_nearest[0]->m_surfaceHeight - pball->m_pos.z).Length(); //!! z pos
 		  Roughness = min(max(dist*0.006f, 0.4f), Roughness);
 	  }
-	  const D3DXVECTOR4 rwem(exp2f(10.0f * Roughness + 1.0f), 0.f, 1.f, 0.f);
-	  ballShader->SetVector("Roughness_WrapL_Edge", &rwem);
+	  const D3DXVECTOR4 rwem(exp2f(10.0f * Roughness + 1.0f), 0.f, 1.f, 0.05f);
+	  ballShader->SetVector("Roughness_WrapL_Edge_Thickness", &rwem);
 
       // ************************* draw the ball itself ****************************
 	  float sx, sy;

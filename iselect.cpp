@@ -115,12 +115,13 @@ void ISelect::DoCommand(int icmd, int x, int y)
    }
    if (((icmd & 0x000FFFFF) >= 0x40000) && ((icmd & 0x000FFFFF) < 0x40020))
    {
+      /*add to collection*/
       const int ksshift = GetKeyState(VK_SHIFT);
       const int ksctrl = GetKeyState(VK_CONTROL);
 
       PinTable *currentTable = GetPTable();
       int i = icmd & 0x000000FF;
-      currentTable->AddToCollection(i);
+      currentTable->UpdateCollection(i);
    }
    switch (icmd)
    {
@@ -287,7 +288,7 @@ void ISelect::FlipX(Vertex2D * const pvCenter)
    PutCenter(&vCenter);
 }
 
-void ISelect::Rotate(float ang, Vertex2D *pvCenter)
+void ISelect::Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter)
 {
    GetIEditable()->MarkForUndo();
 
@@ -305,7 +306,7 @@ void ISelect::Rotate(float ang, Vertex2D *pvCenter)
    PutCenter(&vCenter);
 }
 
-void ISelect::Scale(float scalex, float scaley, Vertex2D *pvCenter)
+void ISelect::Scale(float scalex, float scaley, Vertex2D *pvCenter, const bool useElementsCenter)
 {
    GetIEditable()->MarkForUndo();
 

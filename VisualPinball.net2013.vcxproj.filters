@@ -337,10 +337,13 @@
     <None Include="shader\FXAAStereoAO.fxh">
       <Filter>shaders</Filter>
     </None>
-    <None Include="res\table.vpx">
+    <None Include="res\hittarget.rgs">
       <Filter>res</Filter>
     </None>
-    <None Include="res\hittarget.rgs">
+    <None Include="res\blankTable.vpx">
+      <Filter>res</Filter>
+    </None>
+    <None Include="res\exampleTable.vpx">
       <Filter>res</Filter>
     </None>
   </ItemGroup>

@@ -207,6 +207,8 @@ VPinball::VPinball()
    m_open_minimized = 0;
    memset(m_currentTablePath, 0, MAX_PATH);
 
+   m_mouseCursorPosition.x = 0.0f;
+   m_mouseCursorPosition.y = 0.0f;
    m_pcv = NULL;			// no currently active code window
 }
 
@@ -762,6 +764,8 @@ void VPinball::SetPosCur(float x, float y)
 {
    char szT[256];
    sprintf_s(szT, "%.4f, %.4f", x, y);
+   m_mouseCursorPosition.x = x;
+   m_mouseCursorPosition.y = y;
    SendMessage(m_hwndStatusBar, SB_SETTEXT, 0 | 0, (size_t)szT);
 }
 
@@ -827,13 +831,14 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
 
    switch (code)
    {
-
    case IDM_NEW:
+   case ID_NEW_BLANKTABLE:
+   case ID_NEW_EXAMPLETABLE:
    {
       CComObject<PinTable> *pt;
       CComObject<PinTable>::CreateInstance(&pt);
       pt->AddRef();
-      pt->Init(this);
+      pt->Init(this,code != ID_NEW_EXAMPLETABLE);
       //pt = new PinTable(this);
       m_vtable.AddElement(pt);
       SetEnableToolbar();
@@ -852,13 +857,9 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
       break;
    }
    case ID_TABLE_CAMERAMODE:
-   {
-       DoPlay(true);
-       break;
-   }
    case ID_TABLE_PLAY:
    {
-       DoPlay(false);
+       DoPlay(code == ID_TABLE_CAMERAMODE);
        break;
    }
    case ID_SCRIPT_SHOWIDE:
@@ -1076,19 +1077,19 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
             {
             case eItemRamp:
             {
-               Ramp *pRamp = (Ramp*)psel;
+               Ramp * const pRamp = (Ramp*)psel;
                pRamp->AddPoint(pt.x, pt.y, false);
                break;
             }
             case eItemLight:
             {
-               Light *pLight = (Light*)psel;
+               Light * const pLight = (Light*)psel;
                pLight->AddPoint(pt.x, pt.y, false);
                break;
             }
             case eItemSurface:
             {
-               Surface *pSurf = (Surface*)psel;
+               Surface * const pSurf = (Surface*)psel;
                pSurf->AddPoint(pt.x, pt.y, false);
                break;
             }
@@ -1117,19 +1118,19 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
             {
             case eItemRamp:
             {
-               Ramp *pRamp = (Ramp*)psel;
+               Ramp * const pRamp = (Ramp*)psel;
                pRamp->AddPoint(pt.x, pt.y,true);
                break;
             }
             case eItemLight:
             {
-               Light *pLight = (Light*)psel;
+               Light * const pLight = (Light*)psel;
                pLight->AddPoint(pt.x, pt.y,true);
                break;
             }
             case eItemSurface:
             {
-               Surface *pSurf = (Surface*)psel;
+               Surface * const pSurf = (Surface*)psel;
                pSurf->AddPoint(pt.x, pt.y,true);
                break;
             }
@@ -1234,7 +1235,7 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
    case RECENT_FIRST_MENU_IDM + 6:
    case RECENT_FIRST_MENU_IDM + 7:
    {
-      char	szFileName[MAX_PATH];
+      char szFileName[MAX_PATH];
       // get the index into the recent list menu
       const size_t Index = code - RECENT_FIRST_MENU_IDM;
       // copy it into a temporary string so it can be correctly processed
@@ -2715,6 +2716,32 @@ int CALLBACK MyCompProc(LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOpti
       return(_stricmp(buf1, buf2));
    else
       return(_stricmp(buf1, buf2) * -1);
+}
+
+int CALLBACK MyCompProcIntValues(LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOption)
+{
+    LVFINDINFO lvf;
+    char buf1[MAX_PATH], buf2[MAX_PATH];
+    int value1, value2;
+
+    SORTDATA *lpsd = (SORTDATA *)lSortOption;
+
+    lvf.flags = LVFI_PARAM;
+    lvf.lParam = lSortParam1;
+    const int nItem1 = ListView_FindItem(lpsd->hwndList, -1, &lvf);
+
+    lvf.lParam = lSortParam2;
+    const int nItem2 = ListView_FindItem(lpsd->hwndList, -1, &lvf);
+
+    ListView_GetItemText(lpsd->hwndList, nItem1, lpsd->subItemIndex, buf1, sizeof(buf1));
+    ListView_GetItemText(lpsd->hwndList, nItem2, lpsd->subItemIndex, buf2, sizeof(buf2));
+    sscanf_s(buf1, "%i", &value1);
+    sscanf_s(buf2, "%i", &value2);
+
+    if(lpsd->sortUpDown == 1)
+        return(value1-value2);
+    else
+        return(value2-value1);
 }
 
 const int rgDlgIDFromSecurityLevel[] = { IDC_ACTIVEX0, IDC_ACTIVEX1, IDC_ACTIVEX2, IDC_ACTIVEX3, IDC_ACTIVEX4 };

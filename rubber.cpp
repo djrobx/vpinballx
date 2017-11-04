@@ -18,6 +18,9 @@ Rubber::Rubber()
    memset(m_d.m_szMaterial, 0, 32);
    memset(m_d.m_szPhysicsMaterial, 0, 32);
    m_d.m_fOverwritePhysics=true;
+   m_ptable = NULL;
+   m_d.m_tdr.m_fTimerEnabled = false;
+   m_d.m_tdr.m_TimerInterval = 0;
 }
 
 Rubber::~Rubber()
@@ -918,14 +921,14 @@ void Rubber::FlipX(Vertex2D * const pvCenter)
    IHaveDragPoints::FlipPointX(pvCenter);
 }
 
-void Rubber::Rotate(float ang, Vertex2D *pvCenter)
+void Rubber::Rotate(float ang, Vertex2D *pvCenter, const bool useElementCenter)
 {
-   IHaveDragPoints::RotatePoints(ang, pvCenter);
+   IHaveDragPoints::RotatePoints(ang, pvCenter, useElementCenter);
 }
 
-void Rubber::Scale(float scalex, float scaley, Vertex2D *pvCenter)
+void Rubber::Scale(float scalex, float scaley, Vertex2D *pvCenter, const bool useElementsCenter)
 {
-   IHaveDragPoints::ScalePoints(scalex, scaley, pvCenter);
+   IHaveDragPoints::ScalePoints(scalex, scaley, pvCenter, useElementsCenter);
 }
 
 void Rubber::Translate(Vertex2D *pvOffset)

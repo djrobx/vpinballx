@@ -180,6 +180,11 @@ public:
       m_buffers[m_curIdx]->unlock();
    }
 
+   FrameQueueLimiter()
+   {
+      m_curIdx = 0;
+   }
+
 private:
    std::vector<VertexBuffer*> m_buffers;
    size_t m_curIdx;
@@ -534,6 +539,8 @@ private:
    int m_pauseRefCount;
 
    bool m_fPseudoPause;		// Nothing is moving, but we're still redrawing
+
+   bool m_supportsTouch;    // Display is a touchscreen?
 
 #ifdef LOG
    FILE *m_flog;

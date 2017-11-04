@@ -11,10 +11,13 @@ typedef struct _tagSORTDATA
 }SORTDATA;
 
 extern SORTDATA SortData;
-extern int columnSortOrder[4];
 extern int CALLBACK MyCompProc( LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOption );
+extern int CALLBACK MyCompProcIntValues(LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOption);
+int ImageDialog::m_columnSortOrder;
+
 ImageDialog::ImageDialog() : CDialog(IDD_IMAGEDIALOG)
 {
+   m_columnSortOrder = 1;
 }
 
 ImageDialog::~ImageDialog()
@@ -34,8 +37,9 @@ void ImageDialog::OnClose()
 }
 
 BOOL ImageDialog::OnInitDialog()
-{    
-    return TRUE;
+{   
+   m_columnSortOrder = 1;
+   return TRUE;
 }
 
 INT_PTR ImageDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -67,7 +71,6 @@ INT_PTR ImageDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
          LoadPosition();
 
-
          ListView_SetExtendedListViewStyle(hListView, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 
          lvcol.mask = LVCF_TEXT | LVCF_WIDTH;
@@ -88,8 +91,13 @@ INT_PTR ImageDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
          LocalString ls4( IDS_USED_IN_TABLE );
          lvcol.pszText = ls4.m_szbuffer; // = "In use";
-         lvcol.cx = 50;
+         lvcol.cx = 45;
          ListView_InsertColumn( hListView, 3, &lvcol );
+
+         LocalString ls5(IDS_IMAGE_RAW_SIZE);
+         lvcol.pszText = ls5.m_szbuffer; // = "Raw Size";
+         lvcol.cx = 60;
+         ListView_InsertColumn(hListView, 4, &lvcol);
 
          if(pt)
             pt->ListImages(hListView);
@@ -97,8 +105,9 @@ INT_PTR ImageDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
          char textBuf[16];
          strcpy_s(textBuf, "128");
          SetDlgItemText(IDC_ALPHA_MASK_EDIT, textBuf);
-
-         return TRUE;
+         ListView_SetItemState(hListView, 0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+         GotoDlgCtrl(hListView);
+         return FALSE;
       }
       case GET_COLOR_TABLE:
       {
@@ -115,14 +124,17 @@ INT_PTR ImageDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (lpnmListView->hdr.code == LVN_COLUMNCLICK)
             {
                const int columnNumber = lpnmListView->iSubItem;
-               if (columnSortOrder[columnNumber] == 1)
-                  columnSortOrder[columnNumber] = 0;
+               if (m_columnSortOrder == 1)
+                  m_columnSortOrder = 0;
                else
-                  columnSortOrder[columnNumber] = 1;
+                  m_columnSortOrder = 1;
                SortData.hwndList = GetDlgItem(IDC_SOUNDLIST).GetHwnd();
                SortData.subItemIndex = columnNumber;
-               SortData.sortUpDown = columnSortOrder[columnNumber];
-               ListView_SortItems(SortData.hwndList, MyCompProc, &SortData);
+               SortData.sortUpDown = m_columnSortOrder;
+               if(columnNumber==4)
+                   ListView_SortItems(SortData.hwndList, MyCompProcIntValues, &SortData);
+               else
+                   ListView_SortItems(SortData.hwndList, MyCompProc, &SortData);
             }
          }
          switch (pnmhdr->code)

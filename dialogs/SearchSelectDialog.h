@@ -21,9 +21,13 @@ private:
    void LoadPosition();
    void SavePosition();
    void SelectElement();
+   void SortItems(const int columnNumber);
    HWND hElementList;
    CResizer m_resizer;
    CCO(PinTable) *curTable;
+   static int m_columnSortOrder;
+   static int m_lastSortColumn;
+   static bool m_switchSortOrder;
 };
 
 #endif // !H_SEARCH_SELECT_DIALOG
