@@ -77,6 +77,73 @@ STDMETHODIMP ScriptGlobalTable::Nudge(float Angle, float Force)
    return S_OK;
 }
 
+
+STDMETHODIMP ScriptGlobalTable::NudgeGetCalibration(VARIANT *XMax, VARIANT *YMax, VARIANT *XGain, VARIANT *YGain, VARIANT *DeadZone, VARIANT *TiltSensitivty)
+{
+	int tmp;
+
+	if (SUCCEEDED(GetRegInt("Player", "PBWAccelGainX", &tmp)))
+		CComVariant(tmp).Detach(XGain);
+	if (SUCCEEDED(GetRegInt("Player", "PBWAccelGainY", &tmp)))
+		CComVariant(tmp).Detach(YGain);
+	if (SUCCEEDED(GetRegInt("Player", "PBWAccelMaxX", &tmp)))
+		CComVariant(tmp).Detach(XMax);
+	if (SUCCEEDED(GetRegInt("Player", "PBWAccelMaxY", &tmp)))
+		CComVariant(tmp).Detach(YMax);
+	if (SUCCEEDED(GetRegInt("player", "DeadZone", &tmp)))
+		CComVariant(tmp).Detach(DeadZone);
+	if (SUCCEEDED(GetRegInt("Player", "TiltSensitivity", &tmp)))
+		CComVariant(tmp).Detach(TiltSensitivty);
+	
+	return S_OK;
+}
+
+STDMETHODIMP ScriptGlobalTable::NudgeSetCalibration(int XMax, int YMax, int XGain, int YGain, int DeadZone, int TiltSensitivty)
+{
+	int newvalue;
+
+	newvalue = XGain;
+	if ((SSIZE_T)newvalue < 0) { newvalue = 0; }
+	SetRegValue("Player", "PBWAccelGainX", REG_DWORD, &newvalue, 4);
+
+	newvalue = YGain;
+	if ((SSIZE_T)newvalue < 0) { newvalue = 0; }
+	SetRegValue("Player", "PBWAccelGainY", REG_DWORD, &newvalue, 4);
+
+	newvalue = DeadZone;
+	if ((SSIZE_T)newvalue < 0) { newvalue = 0; }
+	if (newvalue > 100) { newvalue = 100; }
+	SetRegValue("Player", "DeadZone", REG_DWORD, &newvalue, 4);
+
+	newvalue = XMax;
+	if ((SSIZE_T)newvalue < 0) { newvalue = 0; }
+	if (newvalue > 100) { newvalue = 100; }
+	SetRegValue("Player", "PBWAccelMaxX", REG_DWORD, &newvalue, 4);
+
+	newvalue = YMax;
+	if ((SSIZE_T)newvalue < 0) { newvalue = 0; }
+	if (newvalue > 100) { newvalue = 100; }
+	SetRegValue("Player", "PBWAccelMaxY", REG_DWORD, &newvalue, 4);
+
+	newvalue = TiltSensitivty;
+	SetRegValue("Player", "TiltSensitivity", REG_DWORD, &newvalue, 4);
+	m_pt->ReadAccelerometerCalibration();
+
+	return S_OK;
+}
+
+STDMETHODIMP ScriptGlobalTable::NudgeGetStatus(VARIANT *XNudge, VARIANT *YNudge, VARIANT *Tilt)
+{
+	CComVariant(m_pt->m_tblNudgeReadX).Detach(XNudge);
+	m_pt->m_tblNudgeReadX = 0.0f;
+	CComVariant(m_pt->m_tblNudgeReadY).Detach(YNudge);
+	m_pt->m_tblNudgeReadX = 0.0f;
+	CComVariant(m_pt->m_tblNudgeReadTilt).Detach(Tilt);
+	m_pt->m_tblNudgeReadTilt = 0.0f;
+
+	return S_OK;
+}
+
 STDMETHODIMP ScriptGlobalTable::PlaySound(BSTR bstr, long LoopCount, float volume, float pan, float randompitch, long pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float front_rear_fade)
 {
    if (g_pplayer && g_pplayer->m_fPlaySound) m_pt->PlaySound(bstr, LoopCount, volume, pan, randompitch, pitch, usesame, restart, front_rear_fade);
@@ -1347,11 +1414,6 @@ PinTable::PinTable()
    HRESULT hr;
    int tmp;
 
-   F32 tiltsens = 0.40f;
-   hr = GetRegInt("Player", "TiltSensitivity", &tmp);
-   if (hr == S_OK)
-      tiltsens = (float)tmp*(float)(1.0 / 1000.0);
-   plumb_set_sensitivity(tiltsens);
 
    F32 nudgesens = 0.50f;
    hr = GetRegInt("Player", "NudgeSensitivity", &tmp);
@@ -1364,47 +1426,7 @@ PinTable::PinTable()
    if (hr == S_OK)
       m_globalDifficulty = dequantizeUnsignedPercent(tmp);
 
-   int accel;
-   hr = GetRegInt("Player", "PBWEnabled", &accel); // true if electronic accelerometer enabled
-   if (hr == S_OK)
-      m_tblAccelerometer = (accel != fFalse);
-   else
-      m_tblAccelerometer = true;
-
-   hr = GetRegInt("Player", "PBWNormalMount", &accel); // true is normal mounting (left hand coordinates)
-   if (hr == S_OK)
-      m_tblAccelNormalMount = (accel != fFalse);
-   else
-      m_tblAccelNormalMount = true;
-
-   m_tblAccelAngle = 0.0f;			// 0 degrees rotated counterclockwise (GUI is lefthand coordinates)
-   hr = GetRegInt("Player", "PBWRotationCB", &accel);
-   if ((hr == S_OK) && accel)
-   {
-      hr = GetRegInt("Player", "PBWRotationValue", &tmp);
-      if (hr == S_OK)
-         m_tblAccelAngle = (float)tmp;
-   }
-
-   m_tblAccelAmpX = 1.5f;
-   hr = GetRegInt("Player", "PBWAccelGainX", &tmp);
-   if (hr == S_OK)
-      m_tblAccelAmpX = dequantizeUnsignedPercentNoClamp(tmp);
-
-   m_tblAccelAmpY = 1.5f;
-   hr = GetRegInt("Player", "PBWAccelGainY", &tmp);
-   if (hr == S_OK)
-      m_tblAccelAmpY = dequantizeUnsignedPercentNoClamp(tmp);
-
-   m_tblAccelMaxX = JOYRANGEMX;
-   hr = GetRegInt("Player", "PBWAccelMaxX", &tmp);
-   if (hr == S_OK)
-      m_tblAccelMaxX = tmp*JOYRANGEMX / 100;
-
-   m_tblAccelMaxY = JOYRANGEMX;
-   hr = GetRegInt("Player", "PBWAccelMaxY", &tmp);
-   if (hr == S_OK)
-      m_tblAccelMaxY = tmp*JOYRANGEMX / 100;
+   ReadAccelerometerCalibration();
 
    m_tblAutoStart = 0;
    hr = GetRegInt("Player", "Autostart", &tmp);
@@ -1462,6 +1484,10 @@ PinTable::PinTable()
    m_dbgChangedMaterials.clear();
    m_dbgChangedLights.clear();
 
+   m_tblNudgeReadX = 0.0f;
+   m_tblNudgeReadX = 0.0f;
+   m_tblNudgeReadTilt = 0.0f;
+
 #ifdef UNUSED_TILT
    if ( FAILED(GetRegInt("Player", "JoltAmount", &m_jolt_amount) )
       m_jolt_amount = 500;
@@ -1472,6 +1498,61 @@ PinTable::PinTable()
    if ( FAILED(GetRegInt("Player", "TiltTriggerTime", &m_tilt_trigger_time) )
       m_tilt_trigger_time = 10000;
 #endif
+}
+
+void PinTable::ReadAccelerometerCalibration()
+{
+	HRESULT hr;
+	int tmp;
+
+	int accel;
+	hr = GetRegInt("Player", "PBWEnabled", &accel); // true if electronic accelerometer enabled
+	if (hr == S_OK)
+		m_tblAccelerometer = (accel != fFalse);
+	else
+		m_tblAccelerometer = true;
+
+	hr = GetRegInt("Player", "PBWNormalMount", &accel); // true is normal mounting (left hand coordinates)
+	if (hr == S_OK)
+		m_tblAccelNormalMount = (accel != fFalse);
+	else
+		m_tblAccelNormalMount = true;
+
+	m_tblAccelAngle = 0.0f;			// 0 degrees rotated counterclockwise (GUI is lefthand coordinates)
+	hr = GetRegInt("Player", "PBWRotationCB", &accel);
+	if ((hr == S_OK) && accel)
+	{
+		hr = GetRegInt("Player", "PBWRotationValue", &tmp);
+		if (hr == S_OK)
+			m_tblAccelAngle = (float)tmp;
+	}
+
+	m_tblAccelAmpX = 1.5f;
+	hr = GetRegInt("Player", "PBWAccelGainX", &tmp);
+	if (hr == S_OK)
+		m_tblAccelAmpX = dequantizeUnsignedPercentNoClamp(tmp);
+
+	m_tblAccelAmpY = 1.5f;
+	hr = GetRegInt("Player", "PBWAccelGainY", &tmp);
+	if (hr == S_OK)
+		m_tblAccelAmpY = dequantizeUnsignedPercentNoClamp(tmp);
+
+	m_tblAccelMaxX = JOYRANGEMX;
+	hr = GetRegInt("Player", "PBWAccelMaxX", &tmp);
+	if (hr == S_OK)
+		m_tblAccelMaxX = tmp*JOYRANGEMX / 100;
+
+	m_tblAccelMaxY = JOYRANGEMX;
+	hr = GetRegInt("Player", "PBWAccelMaxY", &tmp);
+	if (hr == S_OK)
+		m_tblAccelMaxY = tmp*JOYRANGEMX / 100;
+
+	// bug!! If tilt sensitiivty is not set, it's supposed to disable analog tilting, see KeysConfigDialog.cpp
+	F32 tiltsens = 0.40f;  
+	hr = GetRegInt("Player", "TiltSensitivity", &tmp);
+	if (hr == S_OK)
+		tiltsens = (float)tmp*(float)(1.0 / 1000.0);
+	plumb_set_sensitivity(tiltsens);
 }
 
 PinTable::~PinTable()
@@ -7790,13 +7871,13 @@ void PinTable::ClearOldSounds()
 
 HRESULT PinTable::StopSound(BSTR Sound)
 {
-   MAKE_ANSIPTR_FROMWIDE(szName, Sound);
-   CharLowerBuff(szName, lstrlen(szName));
-
+	MAKE_ANSIPTR_FROMWIDE(szName, Sound);
+	CharLowerBuff(szName, lstrlen(szName));
+	
    // In case we were playing any of the main buffers
    for (int i = 0; i < m_vsound.Size(); i++)
    {
-      if (!lstrcmp(m_vsound.ElementAt(i)->m_szInternalName, szName))
+      if (szName[0]==0 || !lstrcmp(m_vsound.ElementAt(i)->m_szInternalName, szName))
       {
          m_vsound.ElementAt(i)->m_pDSBuffer->Stop();
          break;
@@ -7806,7 +7887,7 @@ HRESULT PinTable::StopSound(BSTR Sound)
    for (int i = 0; i < m_voldsound.Size(); i++)
    {
       PinSoundCopy * const ppsc = m_voldsound.ElementAt(i);
-      if (!lstrcmp(ppsc->m_ppsOriginal->m_szInternalName, szName))
+      if (szName[0]==0 || !lstrcmp(ppsc->m_ppsOriginal->m_szInternalName, szName))
       {
          ppsc->m_pDSBuffer->Stop();
          break;

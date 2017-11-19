@@ -31,6 +31,12 @@ void SoundDialog::OnDestroy()
 void SoundDialog::OnClose()
 {
     SavePosition();
+	CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
+	if (pt)
+	{
+		// Stop all sounds.
+		pt->StopSound(L"");
+	}
     CDialog::OnClose();
 }
 
@@ -537,6 +543,7 @@ void SoundDialog::SoundPosition()
 				pps->m_iBalance = spd.m_iBalance;
 				pps->m_iFade = spd.m_iFade;
 				pps->m_iVolume = spd.m_iVolume;
+				pps->ReInitialize(); 
 
 				pt->SetNonUndoableDirty(eSaveDirty);
 
@@ -615,6 +622,7 @@ SoundPositionDialog::SoundPositionDialog(PinSound *pps) : CDialog(IDD_SOUND_POSI
 
 SoundPositionDialog::~SoundPositionDialog()
 {
+	m_pps->Stop();
 	m_pps->ReInitialize();
 }
 
