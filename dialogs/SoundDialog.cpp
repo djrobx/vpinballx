@@ -35,7 +35,7 @@ void SoundDialog::OnClose()
 	CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
 	if (pt && m_bPlayedSound)
 	{
-		pt->StopSound(L""); 	// Stop all sounds.
+		pt->StopAllSounds(); 
 	}
     CDialog::OnClose();
 }
@@ -164,7 +164,7 @@ INT_PTR SoundDialog::DialogProc( UINT uMsg, WPARAM wParam, LPARAM lParam )
                     ::EnableWindow( GetDlgItem(IDC_PLAY).GetHwnd(), fEnable );
 					if (pt && m_bPlayedSound)
 					{
-						pt->StopSound(L""); // Stop all sounds.
+						pt->StopAllSounds(); 
 						m_bPlayedSound = false;
 					}
                 }

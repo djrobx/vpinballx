@@ -7907,27 +7907,42 @@ HRESULT PinTable::StopSound(BSTR Sound)
    // In case we were playing any of the main buffers
    for (int i = 0; i < m_vsound.Size(); i++)
    {
-      if (szName[0]==0 || !lstrcmp(m_vsound.ElementAt(i)->m_szInternalName, szName))
+      if (!lstrcmp(m_vsound.ElementAt(i)->m_szInternalName, szName))
       {
          m_vsound.ElementAt(i)->m_pDSBuffer->Stop();
-		 if (szName[0])
-			 break;
+		 break;
       }
    }
 
    for (int i = 0; i < m_voldsound.Size(); i++)
    {
       PinSoundCopy * const ppsc = m_voldsound.ElementAt(i);
-      if (szName[0]==0 || !lstrcmp(ppsc->m_ppsOriginal->m_szInternalName, szName))
+      if (!lstrcmp(ppsc->m_ppsOriginal->m_szInternalName, szName))
       {
          ppsc->m_pDSBuffer->Stop();
-		 if (szName[0])
-	         break;
+	     break;
       }
    }
 
    return S_OK;
 }
+
+void PinTable::StopAllSounds()
+{
+	// In case we were playing any of the main buffers
+	for (int i = 0; i < m_vsound.Size(); i++)
+	{
+		m_vsound.ElementAt(i)->m_pDSBuffer->Stop();
+	}
+
+	for (int i = 0; i < m_voldsound.Size(); i++)
+	{
+		PinSoundCopy * const ppsc = m_voldsound.ElementAt(i);
+		ppsc->m_pDSBuffer->Stop();
+	}
+}
+
+
 
 STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float pan, float randompitch, int pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float front_rear_fade)
 {
