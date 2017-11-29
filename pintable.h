@@ -630,6 +630,8 @@ public:
    float m_tblNudgeReadX;
    float m_tblNudgeReadY;
    float m_tblNudgeReadTilt;
+   float m_tblNudgePlumbX;
+   float m_tblNudgePlumbY;
 
    U32   m_tblAutoStart;           // msecs before trying an autostart if doing once-only method .. 0 is automethod
    U32   m_tblAutoStartRetry;      // msecs before retrying to autostart.
@@ -862,7 +864,8 @@ public:
    STDMETHOD(Nudge)(float Angle, float Force);
    STDMETHOD(NudgeGetCalibration)(VARIANT *XMax, VARIANT *YMax, VARIANT *XGain, VARIANT *YGain, VARIANT *DeadZone, VARIANT *TiltSensitivty);
    STDMETHOD(NudgeSetCalibration)(int XMax, int YMax, int XGain, int YGain, int DeadZone, int TiltSensitivty);
-   STDMETHOD(NudgeGetStatus)(VARIANT *XNudge, VARIANT *YNudge, VARIANT *Tilt);
+   STDMETHOD(NudgeSensorStatus)(VARIANT *XNudge, VARIANT *YNudge);
+   STDMETHOD(NudgeTiltStatus)(VARIANT *XPlumb, VARIANT *YPlumb, VARIANT *Tilt);
 
    STDMETHOD(get_Name)(BSTR *pVal);
    STDMETHOD(get_MechanicalTilt)(/*[out, retval]*/ long *pVal);

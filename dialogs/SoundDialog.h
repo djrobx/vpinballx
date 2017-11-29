@@ -27,6 +27,7 @@ private:
     void LoadPosition();
     void SavePosition();
 
+	bool m_bPlayedSound;
     HWND hSoundList;
     char m_filename[MAX_PATH];
     char m_initDir[MAX_PATH];

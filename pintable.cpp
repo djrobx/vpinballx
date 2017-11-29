@@ -98,7 +98,7 @@ STDMETHODIMP ScriptGlobalTable::NudgeGetCalibration(VARIANT *XMax, VARIANT *YMax
 	return S_OK;
 }
 
-STDMETHODIMP ScriptGlobalTable::NudgeSetCalibration(int XMax, int YMax, int XGain, int YGain, int DeadZone, int TiltSensitivty)
+STDMETHODIMP ScriptGlobalTable::NudgeSetCalibration(int XMax, int YMax, int XGain, int YGain, int DeadZone, int TiltSensitivity)
 {
 	int newvalue;
 
@@ -125,19 +125,44 @@ STDMETHODIMP ScriptGlobalTable::NudgeSetCalibration(int XMax, int YMax, int XGai
 	if (newvalue > 100) { newvalue = 100; }
 	SetRegValue("Player", "PBWAccelMaxY", REG_DWORD, &newvalue, 4);
 
-	newvalue = TiltSensitivty;
-	SetRegValue("Player", "TiltSensitivity", REG_DWORD, &newvalue, 4);
+	if (TiltSensitivity > 0)
+	{
+		newvalue = TiltSensitivity;
+		SetRegValue("Player", "TiltSensValue", REG_DWORD, &newvalue, 4);
+		SetRegValue("Player", "TiltSensitivity", REG_DWORD, &newvalue, 4);
+		newvalue = 1;
+		SetRegValue("Player", "TiltSensCB", REG_DWORD, &newvalue, 4);
+	}
+	else
+	{
+		newvalue = 0;
+		SetRegValue("Player", "TiltSensCB", REG_DWORD, &newvalue, 4);
+		HKEY hkey;
+		RegOpenKey(HKEY_CURRENT_USER, "Software\\Visual Pinball\\Player", &hkey);
+		RegDeleteValue(hkey, "TiltSensitivity");
+		RegCloseKey(hkey);
+	}
+	
 	m_pt->ReadAccelerometerCalibration();
 
 	return S_OK;
 }
 
-STDMETHODIMP ScriptGlobalTable::NudgeGetStatus(VARIANT *XNudge, VARIANT *YNudge, VARIANT *Tilt)
+STDMETHODIMP ScriptGlobalTable::NudgeSensorStatus(VARIANT *XNudge, VARIANT *YNudge)
 {
 	CComVariant(m_pt->m_tblNudgeReadX).Detach(XNudge);
 	m_pt->m_tblNudgeReadX = 0.0f;
 	CComVariant(m_pt->m_tblNudgeReadY).Detach(YNudge);
-	m_pt->m_tblNudgeReadX = 0.0f;
+	m_pt->m_tblNudgeReadY = 0.0f;
+
+	return S_OK;
+}
+STDMETHODIMP ScriptGlobalTable::NudgeTiltStatus(VARIANT *XPlumb, VARIANT *YPlumb, VARIANT *Tilt)
+{
+	CComVariant(m_pt->m_tblNudgePlumbX).Detach(XPlumb);
+	m_pt->m_tblNudgePlumbX = 0.0f;
+	CComVariant(m_pt->m_tblNudgePlumbY).Detach(YPlumb);
+	m_pt->m_tblNudgePlumbY = 0.0f;
 	CComVariant(m_pt->m_tblNudgeReadTilt).Detach(Tilt);
 	m_pt->m_tblNudgeReadTilt = 0.0f;
 
@@ -1485,8 +1510,10 @@ PinTable::PinTable()
    m_dbgChangedLights.clear();
 
    m_tblNudgeReadX = 0.0f;
-   m_tblNudgeReadX = 0.0f;
+   m_tblNudgeReadY = 0.0f;
    m_tblNudgeReadTilt = 0.0f;
+   m_tblNudgePlumbX = 0.0f;
+   m_tblNudgePlumbY = 0.0f;
 
 #ifdef UNUSED_TILT
    if ( FAILED(GetRegInt("Player", "JoltAmount", &m_jolt_amount) )
@@ -1553,6 +1580,9 @@ void PinTable::ReadAccelerometerCalibration()
 	if (hr == S_OK)
 		tiltsens = (float)tmp*(float)(1.0 / 1000.0);
 	plumb_set_sensitivity(tiltsens);
+
+	if (g_pplayer)
+		g_pplayer->m_pininput.LoadSettings();
 }
 
 PinTable::~PinTable()
@@ -7880,7 +7910,8 @@ HRESULT PinTable::StopSound(BSTR Sound)
       if (szName[0]==0 || !lstrcmp(m_vsound.ElementAt(i)->m_szInternalName, szName))
       {
          m_vsound.ElementAt(i)->m_pDSBuffer->Stop();
-         break;
+		 if (szName[0])
+			 break;
       }
    }
 
@@ -7890,7 +7921,8 @@ HRESULT PinTable::StopSound(BSTR Sound)
       if (szName[0]==0 || !lstrcmp(ppsc->m_ppsOriginal->m_szInternalName, szName))
       {
          ppsc->m_pDSBuffer->Stop();
-         break;
+		 if (szName[0])
+	         break;
       }
    }
 

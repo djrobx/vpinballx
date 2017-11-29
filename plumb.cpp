@@ -62,7 +62,7 @@ void plumb_update(const U32 curr_time_msec, const float getx, const float gety) 
 
    // Check if we hit the edge.
    const F32 len2 = x * x + y * y;
-   const F32 TiltPerc = (len2 * 100.0f) / (1.0f - gPlumb.tiltsens) * (1.0f - gPlumb.tiltsens);
+   const F32 TiltPerc = (len2 * 100.0f) / ((1.0f - gPlumb.tiltsens) * (1.0f - gPlumb.tiltsens));
 
    if (TiltPerc > 100.0f)
    {
@@ -89,6 +89,10 @@ void plumb_update(const U32 curr_time_msec, const float getx, const float gety) 
 	   g_pplayer->m_ptable->m_tblNudgeReadX = getx;
    if (fabs(gety) > fabs(g_pplayer->m_ptable->m_tblNudgeReadY))
 	   g_pplayer->m_ptable->m_tblNudgeReadY = gety;
+   if (fabs(x) > fabs(g_pplayer->m_ptable->m_tblNudgePlumbX))
+	   g_pplayer->m_ptable->m_tblNudgePlumbX = x;
+   if (fabs(y) > fabs(g_pplayer->m_ptable->m_tblNudgePlumbY))
+	   g_pplayer->m_ptable->m_tblNudgePlumbY = y;
 
    // Dampen the velocity.
    vx -= 2.50f * (vx * dt);
@@ -102,7 +106,9 @@ void plumb_update(const U32 curr_time_msec, const float getx, const float gety) 
       // This reduces annoying jittering when at rest.
       vx = 0.0f;
       vy = 0.0f;
-   }
+	  x = 0.0f;
+	  y = 0.0f;
+   } 
 
    // Update position.
    x += vx * dt;

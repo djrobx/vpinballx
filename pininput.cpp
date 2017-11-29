@@ -83,152 +83,7 @@ PinInput::PinInput()
    m_cameraModeAltKey = false;
    m_cameraMode = 0;
 
-   HRESULT hr;
-   int tmp;
-
-   hr = GetRegInt("Player", "LRAxis", &tmp);
-   if (hr == S_OK) m_lr_axis = tmp;
-
-   hr = GetRegInt("Player", "UDAxis", &tmp);
-   if (hr == S_OK) m_ud_axis = tmp;
-
-   hr = GetRegInt("Player", "LRAxisFlip", &tmp);
-   if (hr == S_OK) m_lr_axis_reverse = tmp;
-
-   hr = GetRegInt("Player", "UDAxisFlip", &tmp);
-   if (hr == S_OK) m_ud_axis_reverse = tmp;
-
-   hr = GetRegInt("Player", "PlungerAxis", &tmp);
-   if (hr == S_OK) m_plunger_axis = tmp;
-
-   hr = GetRegInt("Player", "ReversePlungerAxis", &tmp);
-   if (hr == S_OK) m_plunger_reverse = tmp;
-
-   hr = GetRegInt("Player", "PBWDefaultLayout", &tmp);
-   if (hr == S_OK) m_override_default_buttons = tmp;
-
-   hr = GetRegInt("Player", "DisableESC", &tmp);
-   if (hr == S_OK) m_disable_esc = tmp;
-
-   hr = GetRegInt("Player", "JoyLFlipKey", &tmp);
-   if (hr == S_OK) m_joylflipkey = tmp;
-
-   hr = GetRegInt("Player", "JoyRFlipKey", &tmp);
-   if (hr == S_OK) m_joyrflipkey = tmp;
-
-   hr = GetRegInt("Player", "JoyPlungerKey", &tmp);
-   if (hr == S_OK) m_joyplungerkey = tmp;
-
-   hr = GetRegInt("Player", "JoyAddCreditKey", &tmp);
-   if (hr == S_OK) m_joyaddcreditkey = tmp;
-
-   hr = GetRegInt("Player", "JoyAddCredit2Key", &tmp);
-   if (hr == S_OK) m_joyaddcreditkey2 = tmp;
-
-   hr = GetRegInt("Player", "JoyLMagnaSave", &tmp);
-   if (hr == S_OK) m_joylmagnasave = tmp;
-
-   hr = GetRegInt("Player", "JoyRMagnaSave", &tmp);
-   if (hr == S_OK) m_joyrmagnasave = tmp;
-
-   hr = GetRegInt("Player", "JoyStartGameKey", &tmp);
-   if (hr == S_OK) m_joystartgamekey = tmp;
-
-   hr = GetRegInt("Player", "JoyFrameCount", &tmp);
-   if (hr == S_OK) m_joyframecount = tmp;
-
-   hr = GetRegInt("Player", "JoyExitGameKey", &tmp);
-   if (hr == S_OK) m_joyexitgamekey = tmp;
-
-   hr = GetRegInt("Player", "JoyVolumeUp", &tmp);
-   if (hr == S_OK) m_joyvolumeup = tmp;
-
-   hr = GetRegInt("Player", "JoyVolumeDown", &tmp);
-   if (hr == S_OK) m_joyvolumedown = tmp;
-
-   hr = GetRegInt("Player", "JoyLTiltKey", &tmp);
-   if (hr == S_OK) m_joylefttilt = tmp;
-
-   hr = GetRegInt("Player", "JoyCTiltKey", &tmp);
-   if (hr == S_OK) m_joycentertilt = tmp;
-
-   hr = GetRegInt("Player", "JoyRTiltKey", &tmp);
-   if (hr == S_OK) m_joyrighttilt = tmp;
-
-   hr = GetRegInt("Player", "JoyPMBuyIn", &tmp);
-   if (hr == S_OK) m_joypmbuyin = tmp;
-
-   hr = GetRegInt("Player", "JoyPMCoin3", &tmp);
-   if (hr == S_OK) m_joypmcoin3 = tmp;
-
-   hr = GetRegInt("Player", "JoyPMCoin4", &tmp);
-   if (hr == S_OK) m_joypmcoin4 = tmp;
-
-   hr = GetRegInt("Player", "JoyPMCoinDoor", &tmp);
-   if (hr == S_OK) m_joypmcoindoor = tmp;
-
-   hr = GetRegInt("Player", "JoyPMCancel", &tmp);
-   if (hr == S_OK) m_joypmcancel = tmp;
-
-   hr = GetRegInt("Player", "JoyPMDown", &tmp);
-   if (hr == S_OK) m_joypmdown = tmp;
-
-   hr = GetRegInt("Player", "JoyPMUp", &tmp);
-   if (hr == S_OK) m_joypmup = tmp;
-
-   hr = GetRegInt("Player", "JoyPMEnter", &tmp);
-   if (hr == S_OK) m_joypmenter = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom1", &tmp);
-   if (hr == S_OK) m_joycustom1 = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom1Key", &tmp);
-   if (hr == S_OK) m_joycustom1key = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom2", &tmp);
-   if (hr == S_OK) m_joycustom2 = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom2Key", &tmp);
-   if (hr == S_OK) m_joycustom2key = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom3", &tmp);
-   if (hr == S_OK) m_joycustom3 = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom3Key", &tmp);
-   if (hr == S_OK) m_joycustom3key = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom4", &tmp);
-   if (hr == S_OK) m_joycustom4 = tmp;
-
-   hr = GetRegInt("Player", "JoyCustom4Key", &tmp);
-   if (hr == S_OK) m_joycustom4key = tmp;
-
-   hr = GetRegInt("Player", "JoyMechTiltKey", &tmp);
-   if (hr == S_OK) m_joymechtilt = tmp;
-
-   hr = GetRegInt("Player", "JoyDebugKey", &tmp);
-   if (hr == S_OK) m_joydebugballs = tmp;
-
-   hr = GetRegInt( "Player", "JoyDebuggerKey", &tmp );
-   if(hr == S_OK) m_joydebugger = tmp;
-
-   hr = GetRegInt( "Player", "JoyLockbarKey", &tmp );
-   if(hr == S_OK) m_joylockbar = tmp;
-
-   hr = GetRegInt( "Player", "EnableMouseInPlayer", &tmp );
-   if (hr == S_OK) m_enableMouseInPlayer = (tmp == fTrue);
-
-   hr = GetRegInt("Player", "EnableCameraModeFlyAround", &tmp);
-   if (hr == S_OK) m_enableCameraModeFlyAround = (tmp == fTrue);
-
-   hr = GetRegInt("Player", "EnableNudgeFilter", &tmp);
-   if (hr == S_OK) m_enable_nudge_filter = (tmp == fTrue);
-
-   hr = GetRegInt("Player", "DeadZone", &m_deadz);
-   if (hr != S_OK)
-      m_deadz = 0;
-   else
-      m_deadz = m_deadz*JOYRANGEMX / 100;
+   LoadSettings();
 
    m_exit_stamp = 0;
    m_first_stamp = msec();
@@ -242,6 +97,156 @@ PinInput::PinInput()
 
    gMixerKeyDown = false;
    gMixerKeyUp = false;
+}
+
+void PinInput::LoadSettings()
+{
+	HRESULT hr;
+	int tmp;
+
+	hr = GetRegInt("Player", "LRAxis", &tmp);
+	if (hr == S_OK) m_lr_axis = tmp;
+
+	hr = GetRegInt("Player", "UDAxis", &tmp);
+	if (hr == S_OK) m_ud_axis = tmp;
+
+	hr = GetRegInt("Player", "LRAxisFlip", &tmp);
+	if (hr == S_OK) m_lr_axis_reverse = tmp;
+
+	hr = GetRegInt("Player", "UDAxisFlip", &tmp);
+	if (hr == S_OK) m_ud_axis_reverse = tmp;
+
+	hr = GetRegInt("Player", "PlungerAxis", &tmp);
+	if (hr == S_OK) m_plunger_axis = tmp;
+
+	hr = GetRegInt("Player", "ReversePlungerAxis", &tmp);
+	if (hr == S_OK) m_plunger_reverse = tmp;
+
+	hr = GetRegInt("Player", "PBWDefaultLayout", &tmp);
+	if (hr == S_OK) m_override_default_buttons = tmp;
+
+	hr = GetRegInt("Player", "DisableESC", &tmp);
+	if (hr == S_OK) m_disable_esc = tmp;
+
+	hr = GetRegInt("Player", "JoyLFlipKey", &tmp);
+	if (hr == S_OK) m_joylflipkey = tmp;
+
+	hr = GetRegInt("Player", "JoyRFlipKey", &tmp);
+	if (hr == S_OK) m_joyrflipkey = tmp;
+
+	hr = GetRegInt("Player", "JoyPlungerKey", &tmp);
+	if (hr == S_OK) m_joyplungerkey = tmp;
+
+	hr = GetRegInt("Player", "JoyAddCreditKey", &tmp);
+	if (hr == S_OK) m_joyaddcreditkey = tmp;
+
+	hr = GetRegInt("Player", "JoyAddCredit2Key", &tmp);
+	if (hr == S_OK) m_joyaddcreditkey2 = tmp;
+
+	hr = GetRegInt("Player", "JoyLMagnaSave", &tmp);
+	if (hr == S_OK) m_joylmagnasave = tmp;
+
+	hr = GetRegInt("Player", "JoyRMagnaSave", &tmp);
+	if (hr == S_OK) m_joyrmagnasave = tmp;
+
+	hr = GetRegInt("Player", "JoyStartGameKey", &tmp);
+	if (hr == S_OK) m_joystartgamekey = tmp;
+
+	hr = GetRegInt("Player", "JoyFrameCount", &tmp);
+	if (hr == S_OK) m_joyframecount = tmp;
+
+	hr = GetRegInt("Player", "JoyExitGameKey", &tmp);
+	if (hr == S_OK) m_joyexitgamekey = tmp;
+
+	hr = GetRegInt("Player", "JoyVolumeUp", &tmp);
+	if (hr == S_OK) m_joyvolumeup = tmp;
+
+	hr = GetRegInt("Player", "JoyVolumeDown", &tmp);
+	if (hr == S_OK) m_joyvolumedown = tmp;
+
+	hr = GetRegInt("Player", "JoyLTiltKey", &tmp);
+	if (hr == S_OK) m_joylefttilt = tmp;
+
+	hr = GetRegInt("Player", "JoyCTiltKey", &tmp);
+	if (hr == S_OK) m_joycentertilt = tmp;
+
+	hr = GetRegInt("Player", "JoyRTiltKey", &tmp);
+	if (hr == S_OK) m_joyrighttilt = tmp;
+
+	hr = GetRegInt("Player", "JoyPMBuyIn", &tmp);
+	if (hr == S_OK) m_joypmbuyin = tmp;
+
+	hr = GetRegInt("Player", "JoyPMCoin3", &tmp);
+	if (hr == S_OK) m_joypmcoin3 = tmp;
+
+	hr = GetRegInt("Player", "JoyPMCoin4", &tmp);
+	if (hr == S_OK) m_joypmcoin4 = tmp;
+
+	hr = GetRegInt("Player", "JoyPMCoinDoor", &tmp);
+	if (hr == S_OK) m_joypmcoindoor = tmp;
+
+	hr = GetRegInt("Player", "JoyPMCancel", &tmp);
+	if (hr == S_OK) m_joypmcancel = tmp;
+
+	hr = GetRegInt("Player", "JoyPMDown", &tmp);
+	if (hr == S_OK) m_joypmdown = tmp;
+
+	hr = GetRegInt("Player", "JoyPMUp", &tmp);
+	if (hr == S_OK) m_joypmup = tmp;
+
+	hr = GetRegInt("Player", "JoyPMEnter", &tmp);
+	if (hr == S_OK) m_joypmenter = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom1", &tmp);
+	if (hr == S_OK) m_joycustom1 = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom1Key", &tmp);
+	if (hr == S_OK) m_joycustom1key = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom2", &tmp);
+	if (hr == S_OK) m_joycustom2 = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom2Key", &tmp);
+	if (hr == S_OK) m_joycustom2key = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom3", &tmp);
+	if (hr == S_OK) m_joycustom3 = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom3Key", &tmp);
+	if (hr == S_OK) m_joycustom3key = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom4", &tmp);
+	if (hr == S_OK) m_joycustom4 = tmp;
+
+	hr = GetRegInt("Player", "JoyCustom4Key", &tmp);
+	if (hr == S_OK) m_joycustom4key = tmp;
+
+	hr = GetRegInt("Player", "JoyMechTiltKey", &tmp);
+	if (hr == S_OK) m_joymechtilt = tmp;
+
+	hr = GetRegInt("Player", "JoyDebugKey", &tmp);
+	if (hr == S_OK) m_joydebugballs = tmp;
+
+	hr = GetRegInt("Player", "JoyDebuggerKey", &tmp);
+	if (hr == S_OK) m_joydebugger = tmp;
+
+	hr = GetRegInt("Player", "JoyLockbarKey", &tmp);
+	if (hr == S_OK) m_joylockbar = tmp;
+
+	hr = GetRegInt("Player", "EnableMouseInPlayer", &tmp);
+	if (hr == S_OK) m_enableMouseInPlayer = (tmp == fTrue);
+
+	hr = GetRegInt("Player", "EnableCameraModeFlyAround", &tmp);
+	if (hr == S_OK) m_enableCameraModeFlyAround = (tmp == fTrue);
+
+	hr = GetRegInt("Player", "EnableNudgeFilter", &tmp);
+	if (hr == S_OK) m_enable_nudge_filter = (tmp == fTrue);
+
+	hr = GetRegInt("Player", "DeadZone", &m_deadz);
+	if (hr != S_OK)
+		m_deadz = 0;
+	else
+		m_deadz = m_deadz*JOYRANGEMX / 100;
 }
 
 //-----------------------------------------------------------------------------
