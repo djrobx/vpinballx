@@ -94,7 +94,7 @@ STDMETHODIMP ScriptGlobalTable::NudgeGetCalibration(VARIANT *XMax, VARIANT *YMax
 		CComVariant(tmp).Detach(DeadZone);
 	if (SUCCEEDED(GetRegInt("Player", "TiltSensitivity", &tmp)))
 		CComVariant(tmp).Detach(TiltSensitivty);
-	
+
 	return S_OK;
 }
 
@@ -4770,6 +4770,7 @@ void PinTable::ReImportSound(HWND hwndListView, PinSound *pps, char *filename, B
    // make sure sound data doesn't get deleted twice
    psT.m_pdata = NULL;
    psT.m_pDSBuffer = NULL;
+   psT.m_pDS3DBuffer = NULL;
    delete ppsNew;
 
    if (fPlay)
@@ -4957,6 +4958,9 @@ int PinTable::AddListCollection(HWND hwndListView, CComObject<Collection> *pcol)
 
    const int index = ListView_InsertItem(hwndListView, &lvitem);
 
+   char buf[16] = { 0 };
+   sprintf_s(buf, "%i", pcol->m_visel.Size());
+   ListView_SetItemText(hwndListView, index, 1, buf);
    return index;
 }
 
@@ -5296,18 +5300,12 @@ void PinTable::FillCollectionContextMenu(HMENU hmenu, HMENU colSubMenu, ISelect 
         }
         if(allIndices.size() % m_vmultisel.Size() == 0)
         {
-            for(int i = 0; i < allIndices.size();i++)
+            for(size_t i = 0; i < allIndices.size();i++)
                 CheckMenuItem(colSubMenu, 0x40000 + allIndices[i], MF_CHECKED);
         }
         else
         {
-            // multiple elements where selected but they belong to different collections so grey-out all
-            // collection menu items to tell the user that it's not possible to add/remove them from different collections
-            for(int i = maxItems; i >= 0; i--)
-            {
-                EnableMenuItem(colSubMenu, 0x40000 + i, MF_DISABLED);
-            }
-            for(int i = 0; i < allIndices.size(); i++)
+            for(size_t i = 0; i < allIndices.size(); i++)
                 CheckMenuItem(colSubMenu, 0x40000 + allIndices[i], MF_CHECKED);
         }
     }
@@ -5741,23 +5739,31 @@ void PinTable::UpdateCollection(int index)
    {
       if (m_vmultisel.Size() > 0)
       {
+         bool removeOnly = false;
+         /* if the selection is part of the selected collection remove only remove these elements*/
          for (int t = 0; t < m_vmultisel.Size(); t++)
          {
-            bool alreadyIn = false;
             ISelect *ptr = m_vmultisel.ElementAt(t);
             for (int k = 0; k < m_vcollection.ElementAt(index)->m_visel.Size(); k++)
             {
                if (ptr == m_vcollection.ElementAt(index)->m_visel.ElementAt(k))
                {
-                  //already assigned so remove it
                   m_vcollection.ElementAt(index)->m_visel.RemoveElement(ptr);
-                  alreadyIn = true;
+                  removeOnly = true;
                   break;
                }
             }
-            if (!alreadyIn)
-               m_vcollection.ElementAt(index)->m_visel.AddElement(ptr);
          }
+
+         if(removeOnly)
+             return;
+
+         /*selected elements are not part of the the selected collection and can be added*/
+         for(int t = 0; t < m_vmultisel.Size(); t++)
+         {
+            ISelect *ptr = m_vmultisel.ElementAt(t);
+            m_vcollection.ElementAt(index)->m_visel.AddElement(ptr);
+        }
       }
    }
 }
@@ -5782,18 +5788,16 @@ bool PinTable::GetCollectionIndex(ISelect *element, int &collectionIndex, int &e
 void PinTable::LockElements()
 {
    BeginUndo();
-   bool fLock = FMutilSelLocked() ? false : true;
+   const bool fLock = !FMutilSelLocked();
    for (int i = 0; i < m_vmultisel.Size(); i++)
    {
-      ISelect *psel;
-      IEditable *pedit;
-      psel = m_vmultisel.ElementAt(i);
+      ISelect * const psel = m_vmultisel.ElementAt(i);
       if (psel)
       {
-         pedit = psel->GetIEditable();
+         IEditable * const pedit = psel->GetIEditable();
          if (pedit)
          {
-            psel->GetIEditable()->MarkForUndo();
+            pedit->MarkForUndo();
             psel->m_fLocked = fLock;
          }
       }
@@ -6500,27 +6504,34 @@ void PinTable::ExportTableMesh()
 
 }
 
-void PinTable::ImportBackdropPOV()
+void PinTable::ImportBackdropPOV(const char *filename)
 {
     char szFileName[1024];
     bool oldFormatLoaded = false;
     szFileName[0] = '\0';
 
-    OPENFILENAME ofn;
-    ZeroMemory(&ofn, sizeof(OPENFILENAME));
-    ofn.lStructSize = sizeof(OPENFILENAME);
-    ofn.hInstance = g_hinst;
-    ofn.hwndOwner = g_pvp->m_hwnd;
-    // TEXT
-    ofn.lpstrFilter = "XML file (*.xml)\0*.xml\0";
-    ofn.lpstrFile = szFileName;
-    ofn.nMaxFile = _MAX_PATH;
-    ofn.lpstrDefExt = "xml";
-    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY;
+	if (filename == NULL)
+	{
+		OPENFILENAME ofn;
+		ZeroMemory(&ofn, sizeof(OPENFILENAME));
+		ofn.lStructSize = sizeof(OPENFILENAME);
+		ofn.hInstance = g_hinst;
+		ofn.hwndOwner = g_pvp->m_hwnd;
+		// TEXT
+		ofn.lpstrFilter = "POV file (*.pov)\0*.pov\0Old POV file(*.xml)\0*.xml\0";
+		ofn.lpstrFile = szFileName;
+		ofn.nMaxFile = _MAX_PATH;
+		ofn.lpstrDefExt = "pov";
+		ofn.Flags = OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY;
 
-    const int ret = GetOpenFileName(&ofn);
-    if (ret == 0)
-        return;
+		const int ret = GetOpenFileName(&ofn);
+		if (ret == 0)
+			return;
+	}
+	else
+	{
+		strcpy_s(szFileName, filename);
+	}
 
     xml_document<> xmlDoc;
 
@@ -6575,7 +6586,7 @@ void PinTable::ImportBackdropPOV()
     catch (...)
     {
        if (!oldFormatLoaded)
-         ShowError("Error parsing XML file");
+         ShowError("Error parsing POV XML file");
     }
 
     xmlDoc.clear();
@@ -6583,24 +6594,24 @@ void PinTable::ImportBackdropPOV()
 
 void PinTable::ExportBackdropPOV()
 {
-    OPENFILENAME ofn;
-    memset(m_szObjFileName, 0, MAX_PATH);
-    ZeroMemory(&ofn, sizeof(OPENFILENAME));
-    ofn.lStructSize = sizeof(OPENFILENAME);
-    ofn.hInstance = g_hinst;
-    ofn.hwndOwner = g_pvp->m_hwnd;
-    // TEXT
-    ofn.lpstrFilter = "XML file(*.xml)\0*.xml\0";
-    ofn.lpstrFile = m_szObjFileName;
-    ofn.nMaxFile = _MAX_PATH;
-    ofn.lpstrDefExt = "xml";
-    ofn.Flags = OFN_OVERWRITEPROMPT;
+	OPENFILENAME ofn;
+	memset(m_szObjFileName, 0, MAX_PATH);
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
+	ofn.hInstance = g_hinst;
+	ofn.hwndOwner = g_pvp->m_hwnd;
+	// TEXT
+	ofn.lpstrFilter = "POV file(*.pov)\0*.pov\0";
+	ofn.lpstrFile = m_szObjFileName;
+	ofn.nMaxFile = _MAX_PATH;
+	ofn.lpstrDefExt = "pov";
+	ofn.Flags = OFN_OVERWRITEPROMPT;
 
-    int ret = GetSaveFileName(&ofn);
+	int ret = GetSaveFileName(&ofn);
 
-    // user canceled
-    if (ret == 0)
-        return;// S_FALSE;
+	// user canceled
+	if (ret == 0)
+		return;// S_FALSE;
 
     char strBuf[MAX_PATH];
     xml_document<> xmlDoc;
@@ -7901,16 +7912,16 @@ void PinTable::ClearOldSounds()
 
 HRESULT PinTable::StopSound(BSTR Sound)
 {
-	MAKE_ANSIPTR_FROMWIDE(szName, Sound);
-	CharLowerBuff(szName, lstrlen(szName));
-	
+   MAKE_ANSIPTR_FROMWIDE(szName, Sound);
+   CharLowerBuff(szName, lstrlen(szName));
+
    // In case we were playing any of the main buffers
    for (int i = 0; i < m_vsound.Size(); i++)
    {
       if (!lstrcmp(m_vsound.ElementAt(i)->m_szInternalName, szName))
       {
          m_vsound.ElementAt(i)->m_pDSBuffer->Stop();
-		 break;
+         break;
       }
    }
 
@@ -7920,7 +7931,7 @@ HRESULT PinTable::StopSound(BSTR Sound)
       if (!lstrcmp(ppsc->m_ppsOriginal->m_szInternalName, szName))
       {
          ppsc->m_pDSBuffer->Stop();
-	     break;
+         break;
       }
    }
 
@@ -7941,7 +7952,6 @@ void PinTable::StopAllSounds()
 		ppsc->m_pDSBuffer->Stop();
 	}
 }
-
 
 
 STDMETHODIMP PinTable::PlaySound(BSTR bstr, int loopcount, float volume, float pan, float randompitch, int pitch, VARIANT_BOOL usesame, VARIANT_BOOL restart, float front_rear_fade)

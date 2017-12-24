@@ -215,6 +215,8 @@
 #define IDS_PASTE_AT_ELEMENT            190
 #define IDS_DELETE_ELEMENTS             191
 #define IDS_IMAGE_RAW_SIZE              192
+#define IDS_STRING193                   193
+#define IDS_SIZE                        193
 #define IDS_DRAWING_ORDER_SELECT        200
 #define IDR_APPMENU                     201
 #define IDC_SOUNDLIST                   201
@@ -738,6 +740,7 @@
 #define IDC_BLEND_DISABLE_LIGHTING      494
 #define IDC_ENABLE_LEGACY_NUDGE         495
 #define IDC_BLEND_DISABLE_LIGHTING_FROM_BELOW 496
+#define IDC_BALLDECALMODE               497
 #define IDC_JOYLFLIPCOMBO               501
 #define IDC_JOYRFLIPCOMBO               502
 #define IDC_JOYPLUNGERCOMBO             503
@@ -846,6 +849,10 @@
 #define IDD_SOUND_POSITION              629
 #define IDD_SOUND_POSITION_DIALOG       629
 #define IDR_BLANK_TABLE                 630
+#define IDB_KICKER_WILLIAMS             640
+#define IDB_KICKER_GOTTLIEB             645
+#define IDB_BITMAP4                     646
+#define IDB_KICKER_T1                   646
 #define IDC_CVP_BUT_CANCEL              701
 #define IDC_CVP_BUT_OK                  702
 #define IDC_CVP_BUT_COL_COMPS           703
@@ -1131,7 +1138,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        631
+#define _APS_NEXT_RESOURCE_VALUE        647
 #define _APS_NEXT_COMMAND_VALUE         4022
 #define _APS_NEXT_CONTROL_VALUE         820
 #define _APS_NEXT_SYMED_VALUE           188

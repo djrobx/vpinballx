@@ -539,8 +539,6 @@ void Light::EndPlay()
 
 float Light::GetDepth(const Vertex3Ds& viewDir)
 {
-	if (m_fBackglass)
-		return 0.f;
    return (!m_fBackglass) ? (m_d.m_depthBias + viewDir.x * m_d.m_vCenter.x + viewDir.y * m_d.m_vCenter.y + viewDir.z * m_surfaceHeight) : 0.f;
 }
 

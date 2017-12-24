@@ -1349,18 +1349,17 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
    }
    case ID_EDIT_AUDIOOPTIONS:
    {
-       ShowSubDialog(m_audioOptDialog);
+       m_audioOptDialog.DoModal(m_hwnd);
       break;
    }
    case ID_EDIT_PHYSICSOPTIONS:
    {
-       ShowSubDialog(m_physicsOptDialog);
+       m_physicsOptDialog.DoModal(m_hwnd);
        break;
    }
    case ID_EDIT_EDITOROPTIONS:
    {
-       ShowSubDialog(m_editorOptDialog);
-
+       m_editorOptDialog.DoModal(m_hwnd);
       // refresh editor options from the registry
       InitRegValues();
       // force a screen refresh (it an active table is loaded)
@@ -1371,7 +1370,7 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
    }
    case ID_EDIT_VIDEOOPTIONS:
    {
-       ShowSubDialog(m_videoOptDialog);
+       m_videoOptDialog.DoModal(m_hwnd);
        break;
    }
    case ID_TABLE_TABLEINFO:
@@ -1379,7 +1378,7 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
        ptCur = GetActiveTable();
        if (ptCur)
        {
-           ShowSubDialog(m_tableInfoDialog);
+           m_tableInfoDialog.DoModal(m_hwnd);
        }
        break;
    }
@@ -1480,7 +1479,7 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
            else
            {
                ShowSubDialog(m_collectionMngDlg);
-
+               
                m_sb.PopulateDropdowns(); // May need to update list of collections
                m_sb.RefreshProperties();
            }
@@ -1773,8 +1772,30 @@ void VPinball::LoadFileName(char *szFileName)
    else
    {
       ppt->InitPostLoad(this);
-      TitleFromFilename(szFileName, ppt->m_szTitle);
-      ppt->SetCaption(ppt->m_szTitle);
+      
+	  TitleFromFilename(szFileName, ppt->m_szTitle);
+      
+	  ppt->SetCaption(ppt->m_szTitle);
+
+	  // auto-import POV settings if exist...
+
+	  char szFileNameAuto[MAX_PATH];
+	  strcpy_s(szFileNameAuto, m_currentTablePath);
+	  strcat_s(szFileNameAuto, ppt->m_szTitle);
+	  strcat_s(szFileNameAuto, ".pov");
+	  if (Exists(szFileNameAuto)) // We check if there is a table pov settings first
+	  {
+		  ppt->ImportBackdropPOV(szFileNameAuto);
+	  }
+	  else // Otherwise, we seek for autopov settings
+	  {
+		  strcpy_s(szFileNameAuto, m_currentTablePath);
+		  strcat_s(szFileNameAuto, "autopov.pov");
+		  if (Exists(szFileNameAuto))
+		  {
+			  ppt->ImportBackdropPOV(szFileNameAuto);
+		  }
+	  }
 
       // get the load path from the filename
 	  SetRegValue("RecentDir", "LoadDir", REG_SZ, m_currentTablePath, lstrlen(m_currentTablePath));
@@ -2078,12 +2099,34 @@ void VPinball::UpdateRecentFileList(char *szfilename)
    }
 }
 
+BOOL VPinball::processKeyInputForDialogs(MSG *pmsg)
+{
+    if(g_pvp->m_ptableActive)
+    {
+        if(g_pvp->m_materialDialog.IsWindow())
+            return g_pvp->m_materialDialog.IsDialogMessage(*pmsg);
+        if(g_pvp->m_imageMngDlg.IsWindow())
+            return g_pvp->m_imageMngDlg.IsDialogMessage(*pmsg);
+        if(g_pvp->m_soundMngDlg.IsWindow())
+            return g_pvp->m_soundMngDlg.IsDialogMessage(*pmsg);
+        if(g_pvp->m_collectionMngDlg.IsWindow())
+            return g_pvp->m_collectionMngDlg.IsDialogMessage(*pmsg);
+        if(g_pvp->m_dimensionDialog.IsWindow())
+            return g_pvp->m_dimensionDialog.IsDialogMessage(*pmsg);
+    }
+    return false;
+}
+
 HRESULT VPinball::ApcHost_OnTranslateMessage(MSG* pmsg, BOOL* pfConsumed)
 {
    *pfConsumed = FALSE;
 
    if (!g_pplayer)
    {
+       *pfConsumed = processKeyInputForDialogs(pmsg);
+       if(*pfConsumed)
+           return NOERROR;
+
       for (unsigned i = 0; i < m_sb.m_vhwndDialog.size(); i++)
       {
          if (::IsDialogMessage(m_sb.m_vhwndDialog[i], pmsg))
@@ -2112,8 +2155,7 @@ HRESULT VPinball::ApcHost_OnTranslateMessage(MSG* pmsg, BOOL* pfConsumed)
       {
          if (::IsDialogMessage(m_pcv->m_hwndFind, pmsg))
             *pfConsumed = TRUE;
-      }
-
+      }      
       if (!(*pfConsumed))
       {
          const int fTranslated = TranslateAccelerator(m_hwnd, g_haccel, pmsg);
@@ -2712,7 +2754,9 @@ int CALLBACK MyCompProc(LPARAM lSortParam1, LPARAM lSortParam2, LPARAM lSortOpti
    ListView_GetItemText(lpsd->hwndList, nItem1, lpsd->subItemIndex, buf1, sizeof(buf1));
 
    ListView_GetItemText(lpsd->hwndList, nItem2, lpsd->subItemIndex, buf2, sizeof(buf2));
-   if (lpsd->sortUpDown == 1)
+   if(nItem2 == -1 || nItem1 == -1)
+       return 0;
+   if(lpsd->sortUpDown == 1)
       return(_stricmp(buf1, buf2));
    else
       return(_stricmp(buf1, buf2) * -1);

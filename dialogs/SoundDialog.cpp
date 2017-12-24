@@ -17,7 +17,7 @@ SoundDialog::SoundDialog() : CDialog( IDD_SOUNDDIALOG )
 {
     hSoundList = NULL;
     m_columnSortOrder = 1;
-	m_bPlayedSound = false;
+    m_bPlayedSound = false;
 }
 
 SoundDialog::~SoundDialog()
@@ -32,11 +32,11 @@ void SoundDialog::OnDestroy()
 void SoundDialog::OnClose()
 {
     SavePosition();
-	CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
-	if (pt && m_bPlayedSound)
-	{
-		pt->StopAllSounds(); 
-	}
+    CCO(PinTable) *pt = (CCO(PinTable) *)g_pvp->GetActiveTable();
+    if (pt && m_bPlayedSound)
+    {
+        pt->StopAllSounds(); 
+    }
     CDialog::OnClose();
 }
 
@@ -162,11 +162,11 @@ INT_PTR SoundDialog::DialogProc( UINT uMsg, WPARAM wParam, LPARAM lParam )
                     ::EnableWindow( GetDlgItem(IDC_REIMPORTFROM).GetHwnd(), fEnable );
                     ::EnableWindow( GetDlgItem(IDC_RENAME).GetHwnd(), fEnable );
                     ::EnableWindow( GetDlgItem(IDC_PLAY).GetHwnd(), fEnable );
-					if (pt && m_bPlayedSound)
-					{
-						pt->StopAllSounds(); 
-						m_bPlayedSound = false;
-					}
+                    if (pt && m_bPlayedSound)
+                    {
+                        pt->StopAllSounds(); 
+                        m_bPlayedSound = false;
+                    }
                 }
                 break;
             }
@@ -203,7 +203,7 @@ BOOL SoundDialog::OnCommand( WPARAM wParam, LPARAM lParam )
                 ListView_GetItem( hSoundList, &lvitem );
                 PinSound * const pps = (PinSound *)lvitem.lParam;
                 pps->m_pDSBuffer->Play( 0, 0, 0 );
-				m_bPlayedSound = true;
+                m_bPlayedSound = true;
             }
             break;
         }

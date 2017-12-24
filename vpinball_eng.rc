@@ -265,7 +265,7 @@ BEGIN
     CTEXT           "This application uses Visual Basic Scripting Edition by Microsoft",IDC_STATIC,0,279,150,17
     CONTROL         IDC_RIGHTFLIPPERBUTTON,IDC_STATIC,"Static",SS_BITMAP,7,7,94,27
     LTEXT           "A Randy Davis Production",IDC_STATIC,13,35,94,8
-    LTEXT           "Version 10.4.0",IDC_ABOUT_VERSION,13,45,135,10
+    LTEXT           "Version 10.4.0 Final",IDC_ABOUT_VERSION,13,45,135,10
     GROUPBOX        "Credits",IDC_STATIC,7,57,216,108
     LTEXT           "Original VP8/VP9 Team",IDC_STATIC,68,65,88,9
     LTEXT           "Randy Davis - designer, developer",IDC_STATIC,13,77,115,9
@@ -552,6 +552,7 @@ BEGIN
     GROUPBOX        "",IDC_STATIC,262,128,128,21
     GROUPBOX        "",IDC_STATIC,262,146,128,21
     LTEXT           "* To assign Custom Keys to Gamepad Buttons, click on the button and select desired key, then choose desired gamepad button from dropdown box.",IDC_STATIC,13,273,168,25
+    LTEXT           "To interactively set, calibrate and test the Nudge parameters, please load the\n'Nudge Test and Calibration.vpx' table and run it",IDC_STATIC,255,273,168,25
     CONTROL         "Enable Mouse handling during Play",IDC_ENABLE_MOUSE_PLAYER,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,254,233,150,10
     CONTROL         "Enable flying around (Arrow Keys + Left Alt Key) during Camera/Light Edit Mode",IDC_ENABLE_CAMERA_FLY_AROUND,
@@ -727,7 +728,7 @@ CAPTION "Collection Manager"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "Close",IDCLOSE,259,146,50,14
-    CONTROL         "List1",201,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_EDITLABELS | WS_BORDER | WS_TABSTOP,7,7,240,153
+    CONTROL         "List1",201,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_SORTASCENDING | LVS_EDITLABELS | WS_BORDER | WS_TABSTOP,7,7,240,153
     PUSHBUTTON      "&New",IDC_NEW,259,7,50,14
     PUSHBUTTON      "&Create From Selection",IDC_CREATEFROMSELECTION,259,25,50,21,BS_VCENTER | BS_MULTILINE
     PUSHBUTTON      "De&lete",IDC_DELETE_COLLECTION,259,105,50,14
@@ -3000,6 +3001,9 @@ IDB_BUMPERCAP           BITMAP                  "res\\bumperCap.bmp"
 IDB_KICKER_HOLE_WOOD    BITMAP                  "res\\kickerHoleWood.bmp"
 IDB_KICKER_CUP          BITMAP                  "res\\kickerCup.bmp"
 IDB_AO_DITHER           BITMAP                  "res\\AOdither.bmp"
+IDB_KICKER_WILLIAMS     BITMAP                  "res\\kickerWilliams.bmp"
+IDB_KICKER_GOTTLIEB     BITMAP                  "res\\kickerGottlieb.bmp"
+IDB_KICKER_T1           BITMAP                  "res\\kickerT1.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -3266,6 +3270,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_IMAGE_RAW_SIZE      "Raw Size"
+    IDS_SIZE                "Size"
     IDS_DRAWING_ORDER_SELECT "D&rawing Order (Select)"
 END
 

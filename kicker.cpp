@@ -4,6 +4,9 @@
 #include "meshes/kickerHoleMesh.h"
 #include "meshes/kickerHitMesh.h"
 #include "meshes/kickerSimpleHoleMesh.h"
+#include "meshes/kickerWilliams.h"
+#include "meshes/kickerGottlieb.h"
+#include "meshes/kickerT1Mesh.h"
 
 Kicker::Kicker()
 {
@@ -15,8 +18,8 @@ Kicker::Kicker()
    memset(m_d.m_szMaterial, 0, 32);
    memset(m_d.m_szSurface, 0, MAXTOKEN);
    m_ptable = NULL;
-   numVertices = 0;
-   numIndices = 0;
+   m_numVertices = 0;
+   m_numIndices = 0;
    m_baseHeight = 0.0f;
 }
 
@@ -119,7 +122,7 @@ void Kicker::SetDefaults(bool fromMouseClick)
       m_d.m_kickertype = KickerHole;
 
    //legacy handling:
-   if (m_d.m_kickertype > KickerHoleSimple)
+   if (m_d.m_kickertype > KickerCup2)
 	   m_d.m_kickertype = KickerInvisible;
 
    hr = GetRegInt("DefaultProps\\Kicker", "FallThrough", &iTmp);
@@ -280,7 +283,46 @@ void Kicker::ExportMesh(FILE *f)
       WaveFrontObj_UpdateFaceOffset(kickerCupNumVertices);
       delete[] cup;
    }
-   else if (m_d.m_kickertype == KickerHole)
+   else if(m_d.m_kickertype == KickerWilliams)
+   {
+       Vertex3D_NoTex2 *cup = new Vertex3D_NoTex2[kickerWilliamsNumVertices];
+       GenerateWilliamsMesh(cup);
+       WaveFrontObj_WriteObjectName(f, name);
+       WaveFrontObj_WriteVertexInfo(f, cup, kickerWilliamsNumVertices);
+       const Material * const mat = m_ptable->GetMaterial(m_d.m_szMaterial);
+       WaveFrontObj_WriteMaterial(m_d.m_szMaterial, NULL, mat);
+       WaveFrontObj_UseTexture(f, m_d.m_szMaterial);
+       WaveFrontObj_WriteFaceInfoList(f, kickerWilliamsIndices, kickerWilliamsNumIndices);
+       WaveFrontObj_UpdateFaceOffset(kickerWilliamsNumVertices);
+       delete[] cup;
+   }
+   else if(m_d.m_kickertype == KickerGottlieb)
+   {
+       Vertex3D_NoTex2 *cup = new Vertex3D_NoTex2[kickerGottliebNumVertices];
+       GenerateGottliebMesh(cup);
+       WaveFrontObj_WriteObjectName(f, name);
+       WaveFrontObj_WriteVertexInfo(f, cup, kickerGottliebNumVertices);
+       const Material * const mat = m_ptable->GetMaterial(m_d.m_szMaterial);
+       WaveFrontObj_WriteMaterial(m_d.m_szMaterial, NULL, mat);
+       WaveFrontObj_UseTexture(f, m_d.m_szMaterial);
+       WaveFrontObj_WriteFaceInfoList(f, kickerGottliebIndices, kickerGottliebNumIndices);
+       WaveFrontObj_UpdateFaceOffset(kickerGottliebNumVertices);
+       delete[] cup;
+   }
+   else if(m_d.m_kickertype == KickerCup2)
+   {
+       Vertex3D_NoTex2 *cup = new Vertex3D_NoTex2[kickerT1NumVertices];
+       GenerateT1Mesh(cup);
+       WaveFrontObj_WriteObjectName(f, name);
+       WaveFrontObj_WriteVertexInfo(f, cup, kickerT1NumVertices);
+       const Material * const mat = m_ptable->GetMaterial(m_d.m_szMaterial);
+       WaveFrontObj_WriteMaterial(m_d.m_szMaterial, NULL, mat);
+       WaveFrontObj_UseTexture(f, m_d.m_szMaterial);
+       WaveFrontObj_WriteFaceInfoList(f, kickerT1Indices, kickerT1NumIndices);
+       WaveFrontObj_UpdateFaceOffset(kickerT1NumVertices);
+       delete[] cup;
+   }
+   else if(m_d.m_kickertype == KickerHole)
    {
       Vertex3D_NoTex2 * const hole = new Vertex3D_NoTex2[kickerHoleNumVertices];
       GenerateHoleMesh(hole);
@@ -311,7 +353,7 @@ void Kicker::ExportMesh(FILE *f)
 void Kicker::GenerateCupMesh(Vertex3D_NoTex2 *buf)
 {
    Matrix3D fullMatrix;
-   fullMatrix.RotateZMatrix(ANGTORAD(m_d.m_orientation + 180.f));
+   fullMatrix.RotateZMatrix(ANGTORAD(m_d.m_orientation));
 
    for (int i = 0; i < kickerCupNumVertices; i++)
    {
@@ -329,6 +371,75 @@ void Kicker::GenerateCupMesh(Vertex3D_NoTex2 *buf)
       buf[i].tu = kickerCup[i].tu;
       buf[i].tv = kickerCup[i].tv;
    }
+}
+
+void Kicker::GenerateWilliamsMesh(Vertex3D_NoTex2 *buf)
+{
+    Matrix3D fullMatrix;
+    fullMatrix.RotateZMatrix(ANGTORAD(m_d.m_orientation + 90.f));
+
+    for(int i = 0; i < kickerWilliamsNumVertices; i++)
+    {
+        Vertex3Ds vert(kickerWilliamsMesh[i].x, kickerWilliamsMesh[i].y, kickerWilliamsMesh[i].z);
+        vert = fullMatrix.MultiplyVector(vert);
+
+        buf[i].x = vert.x*m_d.m_radius + m_d.m_vCenter.x;
+        buf[i].y = vert.y*m_d.m_radius + m_d.m_vCenter.y;
+        buf[i].z = vert.z*m_d.m_radius*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set] + m_baseHeight;
+        vert = Vertex3Ds(kickerWilliamsMesh[i].nx, kickerWilliamsMesh[i].ny, kickerWilliamsMesh[i].nz);
+        vert = fullMatrix.MultiplyVectorNoTranslate(vert);
+        buf[i].nx = vert.x;
+        buf[i].ny = vert.y;
+        buf[i].nz = vert.z;
+        buf[i].tu = kickerWilliamsMesh[i].tu;
+        buf[i].tv = kickerWilliamsMesh[i].tv;
+    }
+}
+
+void Kicker::GenerateGottliebMesh(Vertex3D_NoTex2 *buf)
+{
+    Matrix3D fullMatrix;
+    fullMatrix.RotateZMatrix(ANGTORAD(m_d.m_orientation));
+
+    for(int i = 0; i < kickerGottliebNumVertices; i++)
+    {
+        Vertex3Ds vert(kickerGottliebMesh[i].x, kickerGottliebMesh[i].y, kickerGottliebMesh[i].z);
+        vert = fullMatrix.MultiplyVector(vert);
+
+        buf[i].x = vert.x*m_d.m_radius + m_d.m_vCenter.x;
+        buf[i].y = vert.y*m_d.m_radius + m_d.m_vCenter.y;
+        buf[i].z = vert.z*m_d.m_radius*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set] + m_baseHeight;
+        vert = Vertex3Ds(kickerGottliebMesh[i].nx, kickerGottliebMesh[i].ny, kickerGottliebMesh[i].nz);
+        vert = fullMatrix.MultiplyVectorNoTranslate(vert);
+        buf[i].nx = vert.x;
+        buf[i].ny = vert.y;
+        buf[i].nz = vert.z;
+        buf[i].tu = kickerGottliebMesh[i].tu;
+        buf[i].tv = kickerGottliebMesh[i].tv;
+    }
+}
+
+void Kicker::GenerateT1Mesh(Vertex3D_NoTex2 *buf)
+{
+    Matrix3D fullMatrix;
+    fullMatrix.RotateZMatrix(ANGTORAD(m_d.m_orientation));
+
+    for(int i = 0; i < kickerT1NumVertices; i++)
+    {
+        Vertex3Ds vert(kickerT1Mesh[i].x, kickerT1Mesh[i].y, kickerT1Mesh[i].z);
+        vert = fullMatrix.MultiplyVector(vert);
+
+        buf[i].x = vert.x*m_d.m_radius + m_d.m_vCenter.x;
+        buf[i].y = vert.y*m_d.m_radius + m_d.m_vCenter.y;
+        buf[i].z = vert.z*m_d.m_radius*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set] + m_baseHeight;
+        vert = Vertex3Ds(kickerT1Mesh[i].nx, kickerT1Mesh[i].ny, kickerT1Mesh[i].nz);
+        vert = fullMatrix.MultiplyVectorNoTranslate(vert);
+        buf[i].nx = vert.x;
+        buf[i].ny = vert.y;
+        buf[i].nz = vert.z;
+        buf[i].tu = kickerT1Mesh[i].tu;
+        buf[i].tv = kickerT1Mesh[i].tv;
+    }
 }
 
 void Kicker::GenerateHoleMesh(Vertex3D_NoTex2 *buf)
@@ -385,10 +496,17 @@ void Kicker::RenderSetup(RenderDevice* pd3dDevice)
    Pin3D * const ppin3d = &g_pplayer->m_pin3d;
    m_baseHeight = m_ptable->GetSurfaceHeight(m_d.m_szSurface, m_d.m_vCenter.x, m_d.m_vCenter.y) * m_ptable->m_BG_scalez[m_ptable->m_BG_current_set];
 
-   if (m_d.m_kickertype == KickerCup || m_d.m_kickertype == KickerHole || m_d.m_kickertype == KickerHoleSimple)
+   if (m_d.m_kickertype == KickerCup || m_d.m_kickertype == KickerHole || m_d.m_kickertype == KickerHoleSimple || m_d.m_kickertype==KickerWilliams || m_d.m_kickertype==KickerGottlieb || m_d.m_kickertype==KickerCup2)
    {
       Vertex3D_NoTex2 *buf = new Vertex3D_NoTex2[kickerPlateNumVertices];
-      const float rad = m_d.m_radius * ((m_d.m_kickertype == KickerCup) ? 1.0f : 0.82f);
+      float rad = m_d.m_radius; 
+
+      if(m_d.m_kickertype == KickerWilliams || m_d.m_kickertype == KickerGottlieb)
+          rad = m_d.m_radius * 0.88f;
+      else if(m_d.m_kickertype == KickerCup2)
+          rad = m_d.m_radius * 0.87f;
+      else if(m_d.m_kickertype != KickerCup && m_d.m_kickertype != KickerWilliams)
+          rad = m_d.m_radius * 0.82f;
 
       for (unsigned int i = 0; i < kickerPlateNumVertices; i++)
       {
@@ -422,12 +540,12 @@ void Kicker::RenderSetup(RenderDevice* pd3dDevice)
    {
       texture.CreateFromResource(IDB_KICKER_CUP);
 
-      numIndices = kickerCupNumIndices;
-      numVertices = kickerCupNumVertices;
+      m_numIndices = kickerCupNumIndices;
+      m_numVertices = kickerCupNumVertices;
 
       if (indexBuffer)
          indexBuffer->release();
-      indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(kickerCupNumIndices, kickerCupIndices);
+      indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(m_numIndices, kickerCupIndices);
 
       if (vertexBuffer)
          vertexBuffer->release();
@@ -438,20 +556,80 @@ void Kicker::RenderSetup(RenderDevice* pd3dDevice)
       GenerateCupMesh(buf);
       vertexBuffer->unlock();
    }
-   else if (m_d.m_kickertype == KickerHole)
+   if(m_d.m_kickertype == KickerWilliams)
+   {
+       texture.CreateFromResource(IDB_KICKER_WILLIAMS);
+
+       m_numIndices = kickerWilliamsNumIndices;
+       m_numVertices = kickerWilliamsNumVertices;
+
+       if(indexBuffer)
+           indexBuffer->release();
+       indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(m_numIndices, kickerWilliamsIndices);
+
+       if(vertexBuffer)
+           vertexBuffer->release();
+       pd3dDevice->CreateVertexBuffer(m_numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
+
+       Vertex3D_NoTex2 *buf;
+       vertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::WRITEONLY);
+       GenerateWilliamsMesh(buf);
+       vertexBuffer->unlock();
+   }
+   else if(m_d.m_kickertype == KickerGottlieb)
+   {
+       texture.CreateFromResource(IDB_KICKER_GOTTLIEB);
+
+       m_numIndices = kickerGottliebNumIndices;
+       m_numVertices = kickerGottliebNumVertices;
+
+       if(indexBuffer)
+           indexBuffer->release();
+       indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(m_numIndices, kickerGottliebIndices);
+
+       if(vertexBuffer)
+           vertexBuffer->release();
+       pd3dDevice->CreateVertexBuffer(m_numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
+
+       Vertex3D_NoTex2 *buf;
+       vertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::WRITEONLY);
+       GenerateGottliebMesh(buf);
+       vertexBuffer->unlock();
+   }
+   else if(m_d.m_kickertype == KickerCup2)
+   {
+       texture.CreateFromResource(IDB_KICKER_T1);
+
+       m_numIndices = kickerT1NumIndices;
+       m_numVertices = kickerT1NumVertices;
+
+       if(indexBuffer)
+           indexBuffer->release();
+       indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(m_numIndices, kickerT1Indices);
+
+       if(vertexBuffer)
+           vertexBuffer->release();
+       pd3dDevice->CreateVertexBuffer(m_numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
+
+       Vertex3D_NoTex2 *buf;
+       vertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::WRITEONLY);
+       GenerateT1Mesh(buf);
+       vertexBuffer->unlock();
+   }
+   else if(m_d.m_kickertype == KickerHole)
    {
       texture.CreateFromResource(IDB_KICKER_HOLE_WOOD);
 
-      numIndices = kickerHoleNumIndices;
-      numVertices = kickerHoleNumVertices;
+      m_numIndices = kickerHoleNumIndices;
+      m_numVertices = kickerHoleNumVertices;
 
       if (indexBuffer)
          indexBuffer->release();
-      indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(kickerHoleNumIndices, kickerHoleIndices);
+      indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(m_numIndices, kickerHoleIndices);
 
       if (vertexBuffer)
          vertexBuffer->release();
-      pd3dDevice->CreateVertexBuffer(numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
+      pd3dDevice->CreateVertexBuffer(m_numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
 
       Vertex3D_NoTex2 *buf;
       vertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::WRITEONLY);
@@ -462,16 +640,16 @@ void Kicker::RenderSetup(RenderDevice* pd3dDevice)
    {
       texture.CreateFromResource(IDB_KICKER_HOLE_WOOD);
 
-      numIndices = kickerSimpleHoleNumIndices;
-      numVertices = kickerSimpleHoleVertices;
+      m_numIndices = kickerSimpleHoleNumIndices;
+      m_numVertices = kickerSimpleHoleVertices;
 
       if (indexBuffer)
          indexBuffer->release();
-      indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(kickerSimpleHoleNumIndices, kickerSimpleHoleIndices);
+      indexBuffer = pd3dDevice->CreateAndFillIndexBuffer(m_numIndices, kickerSimpleHoleIndices);
 
       if (vertexBuffer)
          vertexBuffer->release();
-      pd3dDevice->CreateVertexBuffer(numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
+      pd3dDevice->CreateVertexBuffer(m_numVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &vertexBuffer);
 
       Vertex3D_NoTex2 *buf;
       vertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::WRITEONLY);
@@ -502,7 +680,7 @@ void Kicker::PostRenderStatic(RenderDevice* pd3dDevice)
    if (m_ptable->m_fReflectionEnabled)
       return;
 
-   if (m_d.m_kickertype == KickerCup || m_d.m_kickertype == KickerHole || m_d.m_kickertype == KickerHoleSimple)
+   if(m_d.m_kickertype == KickerCup || m_d.m_kickertype == KickerHole || m_d.m_kickertype == KickerHoleSimple || m_d.m_kickertype == KickerWilliams || m_d.m_kickertype == KickerGottlieb || m_d.m_kickertype == KickerCup2)
    {
       pd3dDevice->SetRenderState(RenderDevice::DEPTHBIAS, 0);
       pd3dDevice->SetRenderState(RenderDevice::ZWRITEENABLE, TRUE);
@@ -537,7 +715,7 @@ void Kicker::PostRenderStatic(RenderDevice* pd3dDevice)
       pd3dDevice->basicShader->SetAlphaTestValue(-1.0f);
 
       pd3dDevice->basicShader->Begin(0);
-      pd3dDevice->DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, MY_D3DFVF_NOTEX2_VERTEX, vertexBuffer, 0, numVertices, indexBuffer, 0, numIndices);
+      pd3dDevice->DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, MY_D3DFVF_NOTEX2_VERTEX, vertexBuffer, 0, m_numVertices, indexBuffer, 0, m_numIndices);
       pd3dDevice->basicShader->End();
 
    }
@@ -658,7 +836,7 @@ BOOL Kicker::LoadToken(int id, BiffReader *pbr)
    {
       pbr->GetInt(&m_d.m_kickertype);
 	  //legacy handling:
-	  if (m_d.m_kickertype > KickerHoleSimple)
+	  if (m_d.m_kickertype > KickerCup2)
 		  m_d.m_kickertype = KickerInvisible;
    }
    else if (id == FID(SURF))
@@ -1081,7 +1259,7 @@ STDMETHODIMP Kicker::put_DrawStyle(KickerType newVal)
 
    m_d.m_kickertype = newVal;
    //legacy handling:
-   if (m_d.m_kickertype > KickerHoleSimple)
+   if (m_d.m_kickertype > KickerCup2)
 	   m_d.m_kickertype = KickerInvisible;
 
    STOPUNDO

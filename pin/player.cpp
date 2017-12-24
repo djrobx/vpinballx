@@ -355,9 +355,9 @@ Player::Player(bool _cameraMode) : cameraMode(_cameraMode)
    int minphyslooptime;
    hr = GetRegInt("Player", "MinPhysLoopTime", &minphyslooptime);
    if (hr != S_OK)
-	   m_minphyslooptime = 0;
+      m_minphyslooptime = 0;
    else
-	   m_minphyslooptime = minphyslooptime;
+      m_minphyslooptime = min(minphyslooptime,1000);
 
    if (m_fOverwriteBallImages)
    {
@@ -1091,15 +1091,6 @@ void Player::InitBallShader()
    //ballShader->SetBool("decalMode", m_ptable->m_BallDecalMode);
    const float rotation = fmodf(m_ptable->m_BG_rotation[m_ptable->m_BG_current_set], 360.f);
    m_fCabinetMode = (rotation != 0.f);
-
-   if (m_fCabinetMode && !m_ptable->m_BallDecalMode)
-      strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall_CabMode");
-   else if (m_fCabinetMode && m_ptable->m_BallDecalMode)
-      strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall_CabMode_DecalMode");
-   else if (!m_fCabinetMode && m_ptable->m_BallDecalMode)
-      strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall_DecalMode");
-   else
-      strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall");
 
    //ballShader->SetBool("cabMode", rotation != 0.f);
 
@@ -3065,22 +3056,23 @@ void Player::UpdatePhysics()
       //}                     // some rare cases will exit from while()
 
       const U64 cur_time_usec = usec(); //!! one could also do this directly in the while loop condition instead (so that the while loop will really match with the current time), but that leads to some stuttering on some heavy frames
-     
-	  // DJRobX's crazy latency code:   Slow the execution of the physics loops, to give more opportunities to read changes in input.
-	  if (m_minphyslooptime > 0)
-	  {
-		  U64 targettime = (m_minphyslooptime * m_phys_iterations) + initial_time_usec;
-		  // If we've reached the end of the artificial delay cycle (probably about 40% of the way through), fire a "frame sync" timer event
-		  // so VPM can react to input.   This will effectively double the "-1" timer rate, but the goal, when this option is enabled, is to reduce latency
-		  // and those "-1" timer calls should be roughly halfway through the cycle, so it results in a pretty nice overall latency decrease.
-		  if (m_phys_iterations == m_minphyslooptime / 100)
-			  first_cycle = true;
-		  if (cur_time_usec < targettime)
-			  uSleep(targettime - cur_time_usec);
-	  }
-		// end DJRobX's crazy code
-										
-	  // hung in the physics loop over 200 milliseconds or the number of physics iterations to catch up on is high (i.e. very low/unplayable FPS)
+
+      // DJRobX's crazy latency-reduction code: Artificially lengthen the execution of the physics loop by X usecs, to give more opportunities to read changes from input(s) (try values in the multiple 100s up to maximum 1000 range, in general: the more, the faster the CPU is)
+      //                                        Intended mainly to be used if vsync is enabled (e.g. most idle time is shifted from vsync-waiting to here)
+      if (m_minphyslooptime > 0)
+      {
+          const U64 targettime = ((U64)m_minphyslooptime * m_phys_iterations) + initial_time_usec;
+          // If we've reached the end of the artificial delay cycle (probably about 40% of the way through), fire a "frame sync" timer event
+          // so VPM can react to input.   This will effectively double the "-1" timer rate, but the goal, when this option is enabled, is to reduce latency
+          // and those "-1" timer calls should be roughly halfway through the cycle, so it results in a pretty nice overall latency decrease.
+          if (m_phys_iterations == m_minphyslooptime / 100)
+              first_cycle = true; //!! side effects!?!
+          if (cur_time_usec < targettime)
+              uSleep(targettime - cur_time_usec);
+      }
+      // end DJRobX's crazy code
+
+      // hung in the physics loop over 200 milliseconds or the number of physics iterations to catch up on is high (i.e. very low/unplayable FPS)
       if ((cur_time_usec - initial_time_usec > 200000) || (m_phys_iterations > ((m_ptable->m_PhysicsMaxLoops == 0) || (m_ptable->m_PhysicsMaxLoops == 0xFFFFFFFFu) ? 0xFFFFFFFFu : (m_ptable->m_PhysicsMaxLoops*(10000 / PHYSICS_STEPTIME))/*2*/)))
       {                                                             // can not keep up to real time
          m_curPhysicsFrameTime  = initial_time_usec;                // skip physics forward ... slip-cycles -> 'slowed' down physics
@@ -4967,14 +4959,23 @@ void Player::DrawBalls()
 
       const bool lowDetailBall = m_ptable->GetDetailLevel() < 10;
 
-	  // old ball reflection code
+      // old ball reflection code
       //if (drawReflection)
       //   DrawBallReflection(pball, zheight, lowDetailBall);
 
       //ballShader->SetFloat("reflection_ball_playfield", m_ptable->m_playfieldReflectionStrength);
       m_pin3d.m_pd3dDevice->SetRenderState(RenderDevice::ZWRITEENABLE, TRUE);
-      ballShader->SetTechnique(m_ballShaderTechnique);
 
+      if (m_fCabinetMode && !pball->m_decalMode)
+          strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall_CabMode");
+      else if (m_fCabinetMode && pball->m_decalMode)
+          strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall_CabMode_DecalMode");
+      else if (!m_fCabinetMode && pball->m_decalMode)
+          strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall_DecalMode");
+      else //if (!m_fCabinetMode && !pball->m_decalMode)
+          strcpy_s(m_ballShaderTechnique, MAX_PATH, "RenderBall");
+
+      ballShader->SetTechnique(m_ballShaderTechnique);
 
       ballShader->Begin(0);
       m_pin3d.m_pd3dDevice->DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, MY_D3DFVF_NOTEX2_VERTEX, ballVertexBuffer, 0, lowDetailBall ? basicBallLoNumVertices : basicBallMidNumVertices, ballIndexBuffer, 0, lowDetailBall ? basicBallLoNumFaces : basicBallMidNumFaces);

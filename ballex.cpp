@@ -144,122 +144,122 @@ STDMETHODIMP BallEx::put_VelZ(float newVal)
 
 STDMETHODIMP BallEx::get_AngVelX(float *pVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-		*pVal = m_pball->m_angularvelocity.x;
+   *pVal = m_pball->m_angularvelocity.x;
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::put_AngVelX(float newVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-	m_pball->m_angularvelocity.x = newVal;
+   m_pball->m_angularvelocity.x = newVal;
 
-	m_pball->CalcHitRect();
+   m_pball->CalcHitRect();
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::get_AngVelY(float *pVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-	*pVal = m_pball->m_angularvelocity.y;
+   *pVal = m_pball->m_angularvelocity.y;
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::put_AngVelY(float newVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-	m_pball->m_angularvelocity.y = newVal;
+   m_pball->m_angularvelocity.y = newVal;
 
-	m_pball->CalcHitRect();
+   m_pball->CalcHitRect();
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::get_AngVelZ(float *pVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-	*pVal = m_pball->m_angularvelocity.z;
+   *pVal = m_pball->m_angularvelocity.z;
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::put_AngVelZ(float newVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-	m_pball->m_angularvelocity.z = newVal;
+   m_pball->m_angularvelocity.z = newVal;
 
-	m_pball->CalcHitRect();
+   m_pball->CalcHitRect();
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::get_AngMomX(float *pVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-	*pVal = m_pball->m_angularmomentum.x;
+   *pVal = m_pball->m_angularmomentum.x;
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::put_AngMomX(float newVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-		m_pball->m_angularmomentum.x = newVal;
+   m_pball->m_angularmomentum.x = newVal;
 
-	m_pball->CalcHitRect();
+   m_pball->CalcHitRect();
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::get_AngMomY(float *pVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-		*pVal = m_pball->m_angularmomentum.y;
+   *pVal = m_pball->m_angularmomentum.y;
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::put_AngMomY(float newVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-		m_pball->m_angularmomentum.y = newVal;
+   m_pball->m_angularmomentum.y = newVal;
 
-	m_pball->CalcHitRect();
+   m_pball->CalcHitRect();
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::get_AngMomZ(float *pVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-		*pVal = m_pball->m_angularmomentum.z;
+   *pVal = m_pball->m_angularmomentum.z;
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::put_AngMomZ(float newVal)
 {
-	CHECKSTALEBALL
+   CHECKSTALEBALL
 
-		m_pball->m_angularmomentum.z = newVal;
+   m_pball->m_angularmomentum.z = newVal;
 
-	m_pball->CalcHitRect();
+   m_pball->CalcHitRect();
 
-	return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP BallEx::get_Color(OLE_COLOR *pVal)
@@ -336,6 +336,20 @@ STDMETHODIMP BallEx::put_FrontDecal(BSTR newVal)
    strcpy_s(m_pball->m_szImageFront, szImage);
 
    m_pball->m_pinballDecal = tex;
+
+   return S_OK;
+}
+
+STDMETHODIMP BallEx::get_DecalMode(VARIANT_BOOL *pVal)
+{
+   *pVal = (VARIANT_BOOL)FTOVB(m_pball->m_decalMode);
+
+   return S_OK;
+}
+
+STDMETHODIMP BallEx::put_DecalMode(VARIANT_BOOL newVal)
+{
+   m_pball->m_decalMode = VBTOF(newVal);
 
    return S_OK;
 }

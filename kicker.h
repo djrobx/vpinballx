@@ -89,8 +89,11 @@ public:
 
    void WriteRegDefaults();
    void GenerateCupMesh(Vertex3D_NoTex2 *buf);
+   void GenerateGottliebMesh(Vertex3D_NoTex2 *buf);
+   void GenerateWilliamsMesh(Vertex3D_NoTex2 *buf);
    void GenerateHoleMesh(Vertex3D_NoTex2 *buf);
    void GenerateSimpleHoleMesh(Vertex3D_NoTex2 *buf);
+   void GenerateT1Mesh(Vertex3D_NoTex2 *buf);
 
    PinTable *m_ptable;
 
@@ -101,8 +104,8 @@ public:
 
    VertexBuffer *vertexBuffer;
    IndexBuffer  *indexBuffer;
-   unsigned int numVertices;
-   unsigned int numIndices;
+   unsigned int m_numVertices;
+   unsigned int m_numIndices;
 
    Texture texture;
 
