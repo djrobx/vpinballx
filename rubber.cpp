@@ -32,6 +32,13 @@ Rubber::~Rubber()
       dynamicIndexBuffer->release();
 }
 
+void Rubber::UpdateUnitsInfo()
+{
+   char tbuf[128];
+   sprintf_s(tbuf, "Height: %.3f | Thickness: %.3f", g_pvp->ConvertToUnit(m_d.m_height), g_pvp->ConvertToUnit((float)m_d.m_thickness));
+   g_pvp->SetStatusBarUnitInfo(tbuf);
+}
+
 HRESULT Rubber::Init(PinTable *ptable, float x, float y, bool fromMouseClick)
 {
    m_ptable = ptable;
@@ -590,10 +597,11 @@ void Rubber::SetupHitObject(Vector<HitObject> * pvho, HitObject * obj)
    obj->m_ObjType = ePrimitive;
    // hard coded threshold for now
    obj->m_threshold = 2.0f;
+   obj->m_obj = (IFireEvents *)this;
    if (m_d.m_fHitEvent)
-      obj->m_pfe = (IFireEvents *)this;
+      obj->m_fe = true;
    else
-      obj->m_pfe = NULL;
+      obj->m_fe = false;
 
    pvho->AddElement(obj);
    m_vhoCollidable.push_back(obj);	//remember hit components of primitive
@@ -954,7 +962,7 @@ STDMETHODIMP Rubber::InterfaceSupportsErrorInfo(REFIID riid)
 STDMETHODIMP Rubber::get_Height(float *pVal)
 {
    *pVal = m_d.m_height;
-
+   UpdateUnitsInfo();
    return S_OK;
 }
 
@@ -966,6 +974,7 @@ STDMETHODIMP Rubber::put_Height(float newVal)
 
       m_d.m_height = newVal;
       dynamicVertexBufferRegenerate = true;
+      UpdateUnitsInfo();
 
       STOPUNDO
    }
@@ -997,6 +1006,7 @@ STDMETHODIMP Rubber::put_HitHeight(float newVal)
 STDMETHODIMP Rubber::get_Thickness(int *pVal)
 {
    *pVal = m_d.m_thickness;
+   UpdateUnitsInfo();
 
    return S_OK;
 }
@@ -1009,6 +1019,7 @@ STDMETHODIMP Rubber::put_Thickness(int newVal)
 
       m_d.m_thickness = newVal;
       dynamicVertexBufferRegenerate = true;
+      UpdateUnitsInfo();
 
       STOPUNDO
    }

@@ -348,7 +348,7 @@ public:
    std::vector<Ball*> m_vball;
    std::vector<HitFlipper*> m_vFlippers;
 
-   Vector<AnimObject> m_vanimate;
+   Vector<AnimObject> m_vanimate; // animated objects that need frame updates
 
    Vector<HitTimer> m_vht;
    std::vector<TimerOnOff> m_changed_vht; // stores all en/disable changes to the m_vht timer list, to avoid problems with timers dis/enabling themselves
@@ -496,9 +496,9 @@ public:
 
 private:
    Vector<HitObject> m_vho;
-   std::vector< AnimObject* > m_vmover;    // moving objects for physics simulation
+   std::vector<MoverObject*> m_vmover; // moving objects for physics simulation
 
-   std::vector<Ball*> m_vballDelete;	// Balls to free at the end of the frame
+   std::vector<Ball*> m_vballDelete;   // Balls to free at the end of the frame
 
    /*HitKD*/HitQuadtree m_hitoctree;
 
@@ -514,7 +514,7 @@ private:
    U64 m_StartTime_usec;
    U64 m_curPhysicsFrameTime;	// Time when the last frame was drawn
    U64 m_nextPhysicsFrameTime;	// time at which the next physics update should be
-   U64 m_lastFlipTime;	// time at which the next physics update should be
+   U64 m_lastFlipTime;
 
    // all Hitables obtained from the table's list of Editables
    std::vector< Hitable* > m_vhitables;

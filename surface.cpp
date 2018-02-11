@@ -444,7 +444,8 @@ void Surface::SetupHitObject(Vector<HitObject> * pvho, HitObject * obj)
 
    if (m_d.m_fHitEvent)
    {
-      obj->m_pfe = (IFireEvents *)this;
+      obj->m_obj = (IFireEvents*) this;
+      obj->m_fe = true;
       obj->m_threshold = m_d.m_threshold;
    }
 
@@ -479,7 +480,8 @@ void Surface::AddLine(Vector<HitObject> * const pvho, const RenderVertex &pv1, c
 
    if (pv1.fSlingshot)  // slingshots always have hit events
    {
-      plineseg->m_pfe = (IFireEvents *)this;
+      plineseg->m_obj = (IFireEvents*) this;
+      plineseg->m_fe = true;
       plineseg->m_threshold = m_d.m_threshold;
    }
 
@@ -1001,7 +1003,7 @@ void Surface::RenderSlingshots(RenderDevice* pd3dDevice)
    for (unsigned i = 0; i < m_vlinesling.size(); i++)
    {
       LineSegSlingshot * const plinesling = m_vlinesling[i];
-      if (plinesling->m_slingshotanim.m_iframe == 1 || plinesling->m_doHitEvent)
+      if (plinesling->m_slingshotanim.m_iframe || plinesling->m_doHitEvent)
       {
          nothing_to_draw = false;
          break;
@@ -1023,7 +1025,7 @@ void Surface::RenderSlingshots(RenderDevice* pd3dDevice)
    for (unsigned i = 0; i < m_vlinesling.size(); i++)
    {
       LineSegSlingshot * const plinesling = m_vlinesling[i];
-      if (plinesling->m_slingshotanim.m_iframe != 1 && !plinesling->m_doHitEvent)
+      if (!plinesling->m_slingshotanim.m_iframe && !plinesling->m_doHitEvent)
          continue;
       else if (plinesling->m_doHitEvent)
       {
@@ -1527,6 +1529,13 @@ HRESULT Surface::InitPostLoad()
    return S_OK;
 }
 
+void Surface::UpdateUnitsInfo()
+{
+   char tbuf[64];
+   sprintf_s(tbuf, "TopHeight: %.03f | BottomHeight: %0.3f", g_pvp->ConvertToUnit(m_d.m_heighttop), g_pvp->ConvertToUnit(m_d.m_heightbottom));
+   g_pvp->SetStatusBarUnitInfo(tbuf);
+}
+
 STDMETHODIMP Surface::get_HasHitEvent(VARIANT_BOOL *pVal)
 {
    *pVal = (VARIANT_BOOL)FTOVB(m_d.m_fHitEvent);
@@ -1651,6 +1660,7 @@ STDMETHODIMP Surface::put_ImageAlignment(ImageAlignment newVal)
 STDMETHODIMP Surface::get_HeightBottom(float *pVal)
 {
    *pVal = m_d.m_heightbottom;
+   UpdateUnitsInfo();
 
    return S_OK;
 }
@@ -1660,6 +1670,7 @@ STDMETHODIMP Surface::put_HeightBottom(float newVal)
    STARTUNDO
 
    m_d.m_heightbottom = newVal;
+   UpdateUnitsInfo();
 
    STOPUNDO
 
@@ -1669,7 +1680,7 @@ STDMETHODIMP Surface::put_HeightBottom(float newVal)
 STDMETHODIMP Surface::get_HeightTop(float *pVal)
 {
    *pVal = m_d.m_heighttop;
-
+   UpdateUnitsInfo();
    return S_OK;
 }
 
@@ -1678,6 +1689,7 @@ STDMETHODIMP Surface::put_HeightTop(float newVal)
    STARTUNDO
 
    m_d.m_heighttop = newVal;
+   UpdateUnitsInfo();
 
    STOPUNDO
 

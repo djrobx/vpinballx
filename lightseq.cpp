@@ -2,6 +2,7 @@
 
 LightSeq::LightSeq()
 {
+   m_lightseqanim.m_pLightSeq = this;
 }
 
 LightSeq::~LightSeq()
@@ -204,16 +205,8 @@ void LightSeq::GetTimers(Vector<HitTimer> * const pvht)
    }
 }
 
-// This function is supposed to return the hit shapes for the object but since it is
-// off screen we use it to register the screen updater in the game engine.. this means
-// that Check3d (and Draw3d) are called in the updater class.
-//
 void LightSeq::GetHitShapes(Vector<HitObject> * const pvho)
 {
-   m_lightseqanim.m_pLightSeq = this;
-
-   // HACK - adding object directly to screen update list.  Someday make hit objects and screenupdaters seperate objects
-   g_pplayer->m_vanimate.AddElement(&m_lightseqanim);
 }
 
 void LightSeq::GetHitShapesDebug(Vector<HitObject> * const pvho)
@@ -345,7 +338,7 @@ void LightSeq::RenderStatic(RenderDevice* pd3dDevice)
 {
 }
 
-// This function is called during Animate().  It basically check to see if the update
+// This function is called during Animate(). It basically check to see if the update
 // interval has expired and if so handles the light effect
 void LightSeq::Animate()
 {

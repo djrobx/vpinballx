@@ -1342,9 +1342,8 @@ void PinInput::ProcessJoystick(const DIDEVICEOBJECTDATA * __restrict input, int 
                             g_pplayer->NudgeY((m_ud_axis_reverse == 0) ? deadu : -deadu, joyk);
                     }
                     else if (m_plunger_axis == 1)
-                    {	// if X or Y ARE NOT chosen for this axis and Plunger IS chosen for this axis...
-                        if (uShockType == USHOCKTYPE_GENERIC)
-                            g_pplayer->mechPlungerIn((m_plunger_reverse == 0) ? -(int)input->dwData : (int)input->dwData);
+                    {	// if X or Y ARE NOT chosen for this axis and Plunger IS chosen for this axis and (uShockType == USHOCKTYPE_GENERIC)
+                        g_pplayer->mechPlungerIn((m_plunger_reverse == 0) ? -(int)input->dwData : (int)input->dwData);
                     }
                 }
                 break;
@@ -1375,9 +1374,8 @@ void PinInput::ProcessJoystick(const DIDEVICEOBJECTDATA * __restrict input, int 
                             g_pplayer->NudgeY((m_ud_axis_reverse == 0) ? deadu : -deadu, joyk);
                     }
                     else if (m_plunger_axis == 2)
-                    {	// if X or Y ARE NOT chosen for this axis and Plunger IS chosen for this axis...
-                        if (uShockType == USHOCKTYPE_GENERIC)
-                            g_pplayer->mechPlungerIn((m_plunger_reverse == 0) ? -(int)input->dwData : (int)input->dwData);
+                    {	// if X or Y ARE NOT chosen for this axis and Plunger IS chosen for this axis and (uShockType == USHOCKTYPE_GENERIC)
+                        g_pplayer->mechPlungerIn((m_plunger_reverse == 0) ? -(int)input->dwData : (int)input->dwData);
                     }
                 }
                 break;

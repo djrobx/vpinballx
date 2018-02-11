@@ -40,6 +40,13 @@ Spinner::~Spinner()
    }
 }
 
+void Spinner::UpdateUnitsInfo()
+{
+   char tbuf[128];
+   sprintf_s(tbuf, "Length: %.3f | Height: %.3f", g_pvp->ConvertToUnit(m_d.m_length), g_pvp->ConvertToUnit(m_d.m_height));
+   g_pvp->SetStatusBarUnitInfo(tbuf);
+}
+
 HRESULT Spinner::Init(PinTable *ptable, float x, float y, bool fromMouseClick)
 {
    m_ptable = ptable;
@@ -219,11 +226,9 @@ void Spinner::GetHitShapes(Vector<HitObject> * const pvho)
 
       HitCircle *phitcircle;
       phitcircle = new HitCircle(Vertex2D(m_d.m_vCenter.x + cs*halflength, m_d.m_vCenter.y + sn*halflength), m_d.m_length*0.075f, height + m_d.m_height, height + h);
-      phitcircle->m_pfe = NULL;
       pvho->AddElement(phitcircle);
 
       phitcircle = new HitCircle(Vertex2D(m_d.m_vCenter.x - cs*halflength, m_d.m_vCenter.y - sn*halflength), m_d.m_length*0.075f, height + m_d.m_height, height + h);
-      phitcircle->m_pfe = NULL;
       pvho->AddElement(phitcircle);
    }
 }
@@ -327,16 +332,16 @@ void Spinner::ExportMesh(FILE *f)
 void Spinner::UpdatePlate(RenderDevice *pd3dDevice, Vertex3D_NoTex2 *vertBuffer)
 {
    // early out in case still same rotation
-   if( m_phitspinner->m_spinneranim.m_angle == vertexBuffer_spinneranimangle)
+   if( m_phitspinner->m_spinnerMover.m_angle == vertexBuffer_spinneranimangle)
        return;
 
-   vertexBuffer_spinneranimangle = m_phitspinner->m_spinneranim.m_angle;
+   vertexBuffer_spinneranimangle = m_phitspinner->m_spinnerMover.m_angle;
 
    Matrix3D _fullMatrix;
    Matrix3D rotzMat, rotxMat;
 
    _fullMatrix.SetIdentity();
-   rotxMat.RotateXMatrix(-m_phitspinner->m_spinneranim.m_angle);
+   rotxMat.RotateXMatrix(-m_phitspinner->m_spinnerMover.m_angle);
    rotxMat.Multiply(_fullMatrix, _fullMatrix);
    rotzMat.RotateZMatrix(ANGTORAD(m_d.m_rotation));
    rotzMat.Multiply(_fullMatrix, _fullMatrix);
@@ -372,7 +377,7 @@ void Spinner::PostRenderStatic(RenderDevice* pd3dDevice)
 {
    TRACE_FUNCTION();
 
-   if (!m_phitspinner->m_spinneranim.m_fVisible || !m_d.m_fVisible)
+   if (!m_phitspinner->m_spinnerMover.m_fVisible || !m_d.m_fVisible)
       return;
 
    if (m_ptable->m_fReflectionEnabled && !m_d.m_fReflectionEnabled)
@@ -671,7 +676,7 @@ STDMETHODIMP Spinner::InterfaceSupportsErrorInfo(REFIID riid)
 STDMETHODIMP Spinner::get_Length(float *pVal)
 {
    *pVal = m_d.m_length;
-
+   UpdateUnitsInfo();
    return S_OK;
 }
 
@@ -680,6 +685,7 @@ STDMETHODIMP Spinner::put_Length(float newVal)
    STARTUNDO
 
       m_d.m_length = newVal;
+   UpdateUnitsInfo();
 
    STOPUNDO
 
@@ -707,6 +713,7 @@ STDMETHODIMP Spinner::put_Rotation(float newVal)
 STDMETHODIMP Spinner::get_Height(float *pVal)
 {
    *pVal = m_d.m_height;
+   UpdateUnitsInfo();
 
    return S_OK;
 }
@@ -716,6 +723,7 @@ STDMETHODIMP Spinner::put_Height(float newVal)
    STARTUNDO
 
       m_d.m_height = newVal;
+   UpdateUnitsInfo();
 
    STOPUNDO
 
@@ -724,7 +732,7 @@ STDMETHODIMP Spinner::put_Height(float newVal)
 
 STDMETHODIMP Spinner::get_Damping(float *pVal)
 {
-   *pVal = !g_pplayer ? m_d.m_damping : powf(m_phitspinner->m_spinneranim.m_damping,(float)(1.0/PHYS_FACTOR));
+   *pVal = !g_pplayer ? m_d.m_damping : powf(m_phitspinner->m_spinnerMover.m_damping,(float)(1.0/PHYS_FACTOR));
 
    return S_OK;
 }
@@ -733,7 +741,7 @@ STDMETHODIMP Spinner::put_Damping(float newVal)
 {
    const float tmp = clamp(newVal, 0.0f, 1.0f);
    if (g_pplayer)
-      m_phitspinner->m_spinneranim.m_damping = powf(tmp, (float)PHYS_FACTOR);
+      m_phitspinner->m_spinnerMover.m_damping = powf(tmp, (float)PHYS_FACTOR);
    else
    {
       STARTUNDO
@@ -875,7 +883,7 @@ STDMETHODIMP Spinner::put_ShowBracket(VARIANT_BOOL newVal)
 
 STDMETHODIMP Spinner::get_AngleMax(float *pVal)
 {
-   *pVal = (g_pplayer) ? RADTOANG(m_phitspinner->m_spinneranim.m_angleMax) :	//player active value
+   *pVal = (g_pplayer) ? RADTOANG(m_phitspinner->m_spinnerMover.m_angleMax) :	//player active value
       m_d.m_angleMax;
 
    return S_OK;
@@ -892,9 +900,9 @@ STDMETHODIMP Spinner::put_AngleMax(float newVal)
 
          newVal = ANGTORAD(newVal);
 
-         if (m_phitspinner->m_spinneranim.m_angleMin < newVal)	// Min is smaller???
-            m_phitspinner->m_spinneranim.m_angleMax = newVal;	//yes set new max
-         else m_phitspinner->m_spinneranim.m_angleMin = newVal;	//no set new minumum
+         if (m_phitspinner->m_spinnerMover.m_angleMin < newVal)  // Min is smaller???
+            m_phitspinner->m_spinnerMover.m_angleMax = newVal;   //yes set new max
+         else m_phitspinner->m_spinnerMover.m_angleMin = newVal; //no set new minumum
       }
       else return S_FAIL;
    }
@@ -911,7 +919,7 @@ STDMETHODIMP Spinner::put_AngleMax(float newVal)
 
 STDMETHODIMP Spinner::get_AngleMin(float *pVal)
 {
-   *pVal = (g_pplayer) ? RADTOANG(m_phitspinner->m_spinneranim.m_angleMin) :	//player active value
+   *pVal = (g_pplayer) ? RADTOANG(m_phitspinner->m_spinnerMover.m_angleMin) :	//player active value
       m_d.m_angleMin;
 
    return S_OK;
@@ -928,9 +936,9 @@ STDMETHODIMP Spinner::put_AngleMin(float newVal)
 
          newVal = ANGTORAD(newVal);
 
-         if (m_phitspinner->m_spinneranim.m_angleMax > newVal)	// max is bigger
-            m_phitspinner->m_spinneranim.m_angleMin = newVal;	//then set new minumum
-         else m_phitspinner->m_spinneranim.m_angleMax = newVal;	//else set new max
+         if (m_phitspinner->m_spinnerMover.m_angleMax > newVal)  // max is bigger
+            m_phitspinner->m_spinnerMover.m_angleMin = newVal;   //then set new minumum
+         else m_phitspinner->m_spinnerMover.m_angleMax = newVal; //else set new max
       }
       else return S_FAIL;
    }
@@ -946,7 +954,7 @@ STDMETHODIMP Spinner::put_AngleMin(float newVal)
 
 STDMETHODIMP Spinner::get_Elasticity(float *pVal)
 {
-   *pVal = (g_pplayer) ? m_phitspinner->m_spinneranim.m_elasticity :	//player active value
+   *pVal = (g_pplayer) ? m_phitspinner->m_spinnerMover.m_elasticity :	//player active value
       m_d.m_elasticity;
 
    return S_OK;
@@ -956,7 +964,7 @@ STDMETHODIMP Spinner::put_Elasticity(float newVal)
 {
    if (g_pplayer)
    {
-      m_phitspinner->m_spinneranim.m_elasticity = newVal;	//player active value
+      m_phitspinner->m_spinnerMover.m_elasticity = newVal;	//player active value
    }
    else
    {
@@ -970,7 +978,7 @@ STDMETHODIMP Spinner::put_Elasticity(float newVal)
 
 STDMETHODIMP Spinner::get_Visible(VARIANT_BOOL *pVal)
 {
-   *pVal = (VARIANT_BOOL)FTOVB((g_pplayer) ? m_phitspinner->m_spinneranim.m_fVisible : m_d.m_fVisible);
+   *pVal = (VARIANT_BOOL)FTOVB((g_pplayer) ? m_phitspinner->m_spinnerMover.m_fVisible : m_d.m_fVisible);
 
    return S_OK;
 }
@@ -980,7 +988,7 @@ STDMETHODIMP Spinner::put_Visible(VARIANT_BOOL newVal)
 {
    if (g_pplayer)
    {
-      m_phitspinner->m_spinneranim.m_fVisible = VBTOF(newVal);// && m_d.m_fVisible;
+      m_phitspinner->m_spinnerMover.m_fVisible = VBTOF(newVal);// && m_d.m_fVisible;
    }
    else
    {
@@ -1015,7 +1023,7 @@ STDMETHODIMP Spinner::get_CurrentAngle(float *pVal)
 {
    if (m_phitspinner)
    {
-      *pVal = RADTOANG(m_phitspinner->m_spinneranim.m_angle);
+      *pVal = RADTOANG(m_phitspinner->m_spinnerMover.m_angle);
       return S_OK;
    }
    else

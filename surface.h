@@ -151,6 +151,8 @@ private:
 
    void FreeBuffers();
 
+   void UpdateUnitsInfo();
+
    PinTable *m_ptable;
    BSTR m_bstrName;
 

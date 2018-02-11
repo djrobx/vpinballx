@@ -2540,7 +2540,7 @@ void PinTable::Play(bool _cameraMode)
 
    g_fKeepUndoRecords = fFalse;
 
-   m_pcv->m_fScriptError = fFalse;
+   m_pcv->m_fScriptError = false;
    m_pcv->Compile();
 
    if (!m_pcv->m_fScriptError)
@@ -5604,12 +5604,12 @@ void PinTable::DoCommand(int icmd, int x, int y)
        if (CheckPermissions(DISABLE_CUTCOPYPASTE))
            g_pvp->ShowPermissionError();
        else
-           Copy();
+           Copy(x,y);
        break;
    }
    case IDC_PASTE:
    {
-       Paste(fFalse, 0, 0);
+       Paste(fFalse, x, y);
        break;
    }
    case IDC_PASTEAT:
@@ -6877,9 +6877,8 @@ void PinTable::RestoreBackup()
    m_undo.Undo();
 }
 
-void PinTable::Copy()
+void PinTable::Copy(int x, int y)
 {
-   Vector<IStream> vstm;
    ULONG writ = 0;
 
    if (MultiSelIsEmpty()) // Can't copy table
@@ -6887,25 +6886,37 @@ void PinTable::Copy()
       return;
    }
 
-   //m_vstmclipboard
-
-   for (int i = 0; i < m_vmultisel.Size(); i++)
+   if(m_vmultisel.Size() == 1)
    {
-      HGLOBAL hglobal = GlobalAlloc(GMEM_MOVEABLE, 1);
+       // special check if the user selected a Control Point and wants to copy the coordinates
+       ISelect *pItem = HitTest(x, y);
+       if(pItem->GetItemType() == eItemDragPoint)
+       {
+           DragPoint *pPoint = (DragPoint*)pItem;
+           pPoint->Copy();
+           return;
+       }
+   }
 
-      IStream *pstm;
-      CreateStreamOnHGlobal(hglobal, TRUE, &pstm);
+   Vector<IStream> vstm;
+   //m_vstmclipboard
+   for(int i = 0; i < m_vmultisel.Size(); i++)
+   {
+       HGLOBAL hglobal = GlobalAlloc(GMEM_MOVEABLE, 1);
 
-      IEditable *pe = m_vmultisel.ElementAt(i)->GetIEditable();
+       IStream *pstm;
+       CreateStreamOnHGlobal(hglobal, TRUE, &pstm);
 
-      ////////!! BUG!  With multi-select, if you have multiple dragpoints on
-      //////// a surface selected, the surface will get copied multiple times
-      const int type = pe->GetItemType();
-      pstm->Write(&type, sizeof(int), &writ);
+       IEditable *pe = m_vmultisel.ElementAt(i)->GetIEditable();
 
-      pe->SaveData(pstm, NULL, NULL);
+       ////////!! BUG!  With multi-select, if you have multiple dragpoints on
+       //////// a surface selected, the surface will get copied multiple times
+       const int type = pe->GetItemType();
+       pstm->Write(&type, sizeof(int), &writ);
 
-      vstm.AddElement(pstm);
+       pe->SaveData(pstm, NULL, NULL);
+
+       vstm.AddElement(pstm);
    }
 
    g_pvp->SetClipboard(&vstm);
@@ -6920,6 +6931,19 @@ void PinTable::Paste(BOOL fAtLocation, int x, int y)
    {
       g_pvp->ShowPermissionError();
       return;
+   }
+
+   if(m_vmultisel.Size() == 1)
+   {
+       // User wants to paste the copied coordinates of a Control Point
+       ISelect *pItem = HitTest(x, y);
+       if(pItem->GetItemType() == eItemDragPoint)
+       {
+           DragPoint *pPoint = (DragPoint*)pItem;
+           pPoint->Paste();
+           SetDirtyDraw();
+           return;
+       }
    }
 
    const unsigned viewflag = (g_pvp->m_fBackglassView ? VIEW_BACKGLASS : VIEW_PLAYFIELD);
@@ -6997,11 +7021,6 @@ void PinTable::Paste(BOOL fAtLocation, int x, int y)
 
 void PinTable::PreRender(Sur * const psur)
 {
-}
-
-ItemTypeEnum PinTable::GetItemType()
-{
-   return eItemTable;
 }
 
 HRESULT PinTable::InitLoad(IStream *pstm, PinTable *ptable, int *pid, int version, HCRYPTHASH hcrypthash, HCRYPTKEY hcryptkey)
@@ -8290,9 +8309,10 @@ int PinTable::AddListImage(HWND hwndListView, Texture *ppi)
        || (_stricmp( m_szBallImage, ppi->m_szName ) == 0) 
        || (_stricmp( m_szBallImageFront, ppi->m_szName)==0 )
        || (_stricmp( m_szEnvImage, ppi->m_szName ) == 0)
-       || (_stricmp( m_BG_szImage[BG_DESKTOP], ppi->m_szName)==0)
-       || (_stricmp(m_BG_szImage[BG_FSS], ppi->m_szName) == 0)
-       || (_stricmp(m_BG_szImage[BG_FULLSCREEN], ppi->m_szName) == 0))
+       || (_stricmp( m_BG_szImage[BG_DESKTOP], ppi->m_szName )==0)
+       || (_stricmp( m_BG_szImage[BG_FSS], ppi->m_szName ) == 0)
+       || (_stricmp( m_BG_szImage[BG_FULLSCREEN], ppi->m_szName ) == 0)
+       || (_stricmp( m_szImageColorGrade, ppi->m_szName ) == 0))
    {
        ListView_SetItemText( hwndListView, index, 3, usedStringYes );
    }
@@ -8396,6 +8416,7 @@ int PinTable::AddListImage(HWND hwndListView, Texture *ppi)
                    break;
                }
            }
+
            if(inUse)
            {
                ListView_SetItemText( hwndListView, index, 3, usedStringYes );
@@ -8656,9 +8677,32 @@ int PinTable::AddListMaterial(HWND hwndListView, Material *pmat)
                inUse = true;
             break;
          }
+         case eItemBumper:
+         {
+            Bumper *pBump = (Bumper*)pEdit;
+            if ((_stricmp(pBump->m_d.m_szCapMaterial, pmat->m_szName) == 0) || (_stricmp(pBump->m_d.m_szBaseMaterial, pmat->m_szName) == 0) ||
+                (_stricmp(pBump->m_d.m_szSkirtMaterial, pmat->m_szName) == 0) || (_stricmp(pBump->m_d.m_szRingMaterial, pmat->m_szName) == 0))
+               inUse = true;
+            break;
+         }
+         case eItemKicker:
+         {
+            Kicker *pKick = (Kicker*)pEdit;
+            if (_stricmp(pKick->m_d.m_szMaterial, pmat->m_szName) == 0)
+               inUse = true;
+            break;
+         }
+         case eItemTrigger:
+         {
+            Trigger *pTrig = (Trigger*)pEdit;
+            if (_stricmp(pTrig->m_d.m_szMaterial, pmat->m_szName) == 0)
+               inUse = true;
+            break;
+         }
          default:
             break;
          }
+
          if (inUse)
          {
             ListView_SetItemText(hwndListView, index, 1, usedStringYes);
@@ -9445,6 +9489,7 @@ STDMETHODIMP PinTable::put_TableHeight(float newVal)
 STDMETHODIMP PinTable::get_Width(float *pVal)
 {
    *pVal = m_right;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }
@@ -11000,11 +11045,11 @@ STDMETHODIMP PinTable::get_ShowDT(VARIANT_BOOL *pVal)
 
 STDMETHODIMP PinTable::put_ShowDT(VARIANT_BOOL newVal)
 {
-   STARTUNDO
+   //STARTUNDO // not saved/just a simple toggle, so do not trigger undo
 
    m_BG_current_set = (!!newVal) ? (m_BG_enable_FSS ? BG_FSS : BG_DESKTOP) : BG_FULLSCREEN;
 
-   STOPUNDO
+   //STOPUNDO
 
    SetDirtyDraw();
 

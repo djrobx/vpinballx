@@ -75,7 +75,7 @@ void Plunger::SetDefaults(bool fromMouseClick)
 
    hr = GetRegInt("DefaultProps\\Plunger", "PlungerType", &iTmp);
    if ((hr == S_OK) && fromMouseClick)
-      m_d.m_type = (enum PlungerType)iTmp;
+      m_d.m_type = (PlungerType)iTmp;
    else
       m_d.m_type = PlungerTypeModern;
 
@@ -116,13 +116,13 @@ void Plunger::SetDefaults(bool fromMouseClick)
    if ((hr == S_OK) && fromMouseClick)
       m_d.m_mechPlunger = iTmp == 0 ? false : true;
    else
-      m_d.m_mechPlunger = fFalse;             // plungers require selection for mechanical input
+      m_d.m_mechPlunger = false;             // plungers require selection for mechanical input
 
    hr = GetRegInt("DefaultProps\\Plunger", "AutoPlunger", &iTmp);
    if ((hr == S_OK) && fromMouseClick)
       m_d.m_autoPlunger = iTmp == 0 ? false : true;
    else
-      m_d.m_autoPlunger = fFalse;
+      m_d.m_autoPlunger = false;
 
 
    hr = GetRegInt("DefaultProps\\Plunger", "Visible", &iTmp);
@@ -208,8 +208,8 @@ void Plunger::WriteRegDefaults()
    SetRegValueBool("DefaultProps\\Plunger", "TimerEnabled", m_d.m_tdr.m_fTimerEnabled);
    SetRegValue("DefaultProps\\Plunger", "TimerInterval", REG_DWORD, &m_d.m_tdr.m_TimerInterval, 4);
    SetRegValue("DefaultProps\\Plunger", "Surface", REG_SZ, &m_d.m_szSurface, lstrlen(m_d.m_szSurface));
-   SetRegValue("DefaultProps\\Plunger", "MechPlunger", REG_DWORD, &m_d.m_mechPlunger, 4);
-   SetRegValue("DefaultProps\\Plunger", "AutoPlunger", REG_DWORD, &m_d.m_autoPlunger, 4);
+   SetRegValueBool("DefaultProps\\Plunger", "MechPlunger", m_d.m_mechPlunger);
+   SetRegValueBool("DefaultProps\\Plunger", "AutoPlunger", m_d.m_autoPlunger);
    SetRegValueFloat("DefaultProps\\Plunger", "MechStrength", m_d.m_mechStrength);
    SetRegValueFloat("DefaultProps\\Plunger", "ParkPosition", m_d.m_parkPosition);
    SetRegValueBool("DefaultProps\\Plunger", "Visible", m_d.m_fVisible);
@@ -258,8 +258,6 @@ void Plunger::GetHitShapes(Vector<HitObject> * const pvho)
       m_d.m_v.y + m_d.m_height, m_d.m_v.x + m_d.m_width,
       zheight, m_d.m_v.y - m_d.m_stroke, m_d.m_v.y,
       this);
-
-   php->m_pfe = NULL;
 
    pvho->AddElement(php);
    php->m_pplunger = this;
@@ -376,7 +374,7 @@ void Plunger::PostRenderStatic(RenderDevice* pd3dDevice)
 
    _ASSERTE(m_phitplunger);
 
-   const PlungerAnimObject& pa = m_phitplunger->m_plungeranim;
+   const PlungerMoverObject& pa = m_phitplunger->m_plungerMover;
    const int frame0 = (int)((pa.m_pos - pa.m_frameStart) / (pa.m_frameEnd - pa.m_frameStart) * (cframes - 1) + 0.5f);
    const int frame = (frame0 < 0 ? 0 : frame0 >= cframes ? cframes - 1 : frame0);
 
@@ -1218,7 +1216,7 @@ STDMETHODIMP Plunger::PullBack()
 {
    // initiate a pull; the speed is set by our pull speed property
    if (m_phitplunger)
-      m_phitplunger->m_plungeranim.PullBack(m_d.m_speedPull);
+      m_phitplunger->m_plungerMover.PullBack(m_d.m_speedPull);
 
    return S_OK;
 }
@@ -1321,13 +1319,13 @@ STDMETHODIMP Plunger::Fire()
          // is constant (modulo some mechanical randomness).  Simulate
          // this by triggering a release from the maximum retracted
          // position.
-         m_phitplunger->m_plungeranim.Fire(1.0f);
+         m_phitplunger->m_plungerMover.Fire(1.0f);
       }
       else
       {
          // Regular plunger - trigger a release from the current
          // position, using the keyboard firing strength.
-         m_phitplunger->m_plungeranim.Fire();
+         m_phitplunger->m_plungerMover.Fire();
       }
    }
 
@@ -1629,8 +1627,8 @@ STDMETHODIMP Plunger::CreateBall(IBall **pBallEx)
 {
    if (m_phitplunger)
    {
-      const float x = (m_phitplunger->m_plungeranim.m_x + m_phitplunger->m_plungeranim.m_x2) * 0.5f;
-      const float y = m_phitplunger->m_plungeranim.m_pos - (25.0f + 0.01f); //!! assumes ball radius 25
+      const float x = (m_phitplunger->m_plungerMover.m_x + m_phitplunger->m_plungerMover.m_x2) * 0.5f;
+      const float y = m_phitplunger->m_plungerMover.m_pos - (25.0f + 0.01f); //!! assumes ball radius 25
 
       const float height = m_ptable->GetSurfaceHeight(m_d.m_szSurface, x, y);
 
@@ -1646,6 +1644,7 @@ STDMETHODIMP Plunger::CreateBall(IBall **pBallEx)
 STDMETHODIMP Plunger::get_X(float *pVal)
 {
    *pVal = m_d.m_v.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }

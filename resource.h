@@ -343,6 +343,7 @@
 #define IDC_DBGLIGHTSBUTTON             280
 #define IDC_DEFAULT_COLORS_BUTTON       280
 #define IDC_TEST                        280
+#define IDC_POINT_COPY_BUTTON           280
 #define IDC_ITEMLIST                    281
 #define IDC_OUT                         281
 #define IDC_SENDMAIL                    281
@@ -449,6 +450,7 @@
 #define IDC_LIGHT_TYPE_CHECKBOX         340
 #define IDC_MATERIAL_COMBO              340
 #define IDC_LIGHTSCOMBO                 340
+#define IDC_UNIT_LIST_COMBO             340
 #define IDD_PROPSPINNER_VISUALS         341
 #define IDS_DEBUGNOCONVERT              341
 #define IDC_MATERIAL_COMBO2             341
@@ -925,6 +927,7 @@
 #define DBG_MATERIAL_OPACITY_EDGE_EDIT  764
 #define IDC_BUTTON2                     765
 #define IDC_DBG_MATERIALS_BUTTON        765
+#define IDC_POINT_PASTE_BUTTON          765
 #define IDC_DBG_BULB_MODULATE_VS_ADD    766
 #define IDC_DBG_TRANSMISSION_SCALE      767
 #define IDC_STATIC_GLOSSY_IMGLERP       768

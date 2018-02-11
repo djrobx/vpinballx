@@ -231,10 +231,15 @@ void Textbox::PostRenderStatic(RenderDevice* pd3dDevice)
    const float mult = (float)(1.0 / EDITOR_BG_WIDTH);
    const float ymult = (float)(1.0 / EDITOR_BG_WIDTH * 4.0 / 3.0);
 
-   const float x = (float)m_rect.left*mult;
-   const float y = (float)m_rect.top*ymult;
-   const float width = (float)(m_rect.right - m_rect.left)*mult;
-   const float height = (float)(m_rect.bottom - m_rect.top)*ymult;
+   const float rect_left = min(m_d.m_v1.x, m_d.m_v2.x);
+   const float rect_top = min(m_d.m_v1.y, m_d.m_v2.y);
+   const float rect_right = max(m_d.m_v1.x, m_d.m_v2.x);
+   const float rect_bottom = max(m_d.m_v1.y, m_d.m_v2.y);
+
+   const float x = rect_left*mult;
+   const float y = rect_top*ymult;
+   const float width = (rect_right - rect_left)*mult;
+   const float height = (rect_bottom - rect_top)*ymult;
 
    if (dmd)
    {
@@ -260,16 +265,6 @@ void Textbox::PostRenderStatic(RenderDevice* pd3dDevice)
 
 void Textbox::RenderSetup(RenderDevice* pd3dDevice)
 {
-   const float left = min(m_d.m_v1.x, m_d.m_v2.x);
-   const float right = max(m_d.m_v1.x, m_d.m_v2.x);
-   const float top = min(m_d.m_v1.y, m_d.m_v2.y);
-   const float bottom = max(m_d.m_v1.y, m_d.m_v2.y);
-
-   m_rect.left = (int)left;
-   m_rect.top = (int)top;
-   m_rect.right = (int)right;
-   m_rect.bottom = (int)bottom;
-
    m_pIFont->Clone(&m_pIFontPlay);
 
    CY size;
@@ -286,8 +281,14 @@ void Textbox::RenderStatic(RenderDevice* pd3dDevice)
 
 void Textbox::RenderText()
 {
-   const int width = m_rect.right - m_rect.left;
-   const int height = m_rect.bottom - m_rect.top;
+   RECT rect;
+   rect.left = (int)min(m_d.m_v1.x, m_d.m_v2.x);
+   rect.top = (int)min(m_d.m_v1.y, m_d.m_v2.y);
+   rect.right = (int)max(m_d.m_v1.x, m_d.m_v2.x);
+   rect.bottom = (int)max(m_d.m_v1.y, m_d.m_v2.y);
+
+   const int width = rect.right - rect.left;
+   const int height = rect.bottom - rect.top;
 
    BITMAPINFO bmi;
    ZeroMemory(&bmi, sizeof(bmi));
@@ -348,7 +349,7 @@ void Textbox::RenderText()
    GdiFlush();     // make sure everything is drawn
 
    if (!m_texture)
-      m_texture = new BaseTexture(m_rect.right - m_rect.left, m_rect.bottom - m_rect.top);
+      m_texture = new BaseTexture(width, height);
    m_texture->CopyFrom_Raw(bits);
 
    // Set alpha for pixels that match transparent color (if transparent enabled), otherwise set to opaque
@@ -635,11 +636,11 @@ STDMETHODIMP Textbox::put_Width(float newVal)
 {
    STARTUNDO
 
-      m_d.m_v2.x = m_d.m_v1.x + newVal;
+   m_d.m_v2.x = m_d.m_v1.x + newVal;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP Textbox::get_Height(float *pVal)
@@ -653,16 +654,17 @@ STDMETHODIMP Textbox::put_Height(float newVal)
 {
    STARTUNDO
 
-      m_d.m_v2.y = m_d.m_v1.y + newVal;
+   m_d.m_v2.y = m_d.m_v1.y + newVal;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP Textbox::get_X(float *pVal)
 {
    *pVal = m_d.m_v1.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }
@@ -671,14 +673,14 @@ STDMETHODIMP Textbox::put_X(float newVal)
 {
    STARTUNDO
 
-      float delta = newVal - m_d.m_v1.x;
+   const float delta = newVal - m_d.m_v1.x;
 
    m_d.m_v1.x += delta;
    m_d.m_v2.x += delta;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP Textbox::get_Y(float *pVal)
@@ -692,14 +694,14 @@ STDMETHODIMP Textbox::put_Y(float newVal)
 {
    STARTUNDO
 
-      float delta = newVal - m_d.m_v1.y;
+   const float delta = newVal - m_d.m_v1.y;
 
    m_d.m_v1.y += delta;
    m_d.m_v2.y += delta;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP Textbox::get_IntensityScale(float *pVal)
@@ -713,11 +715,11 @@ STDMETHODIMP Textbox::put_IntensityScale(float newVal)
 {
    STARTUNDO
 
-      m_d.m_intensity_scale = newVal;
+   m_d.m_intensity_scale = newVal;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 void Textbox::GetDialogPanes(Vector<PropertyPane> *pvproppane)
@@ -751,11 +753,11 @@ STDMETHODIMP Textbox::put_Alignment(TextAlignment newVal)
 {
    STARTUNDO
 
-      m_d.m_talign = newVal;
+   m_d.m_talign = newVal;
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP Textbox::get_IsTransparent(VARIANT_BOOL *pVal)

@@ -265,7 +265,7 @@ BEGIN
     CTEXT           "This application uses Visual Basic Scripting Edition by Microsoft",IDC_STATIC,0,279,150,17
     CONTROL         IDC_RIGHTFLIPPERBUTTON,IDC_STATIC,"Static",SS_BITMAP,7,7,94,27
     LTEXT           "A Randy Davis Production",IDC_STATIC,13,35,94,8
-    LTEXT           "Version 10.4.0 Final",IDC_ABOUT_VERSION,13,45,135,10
+    LTEXT           "Version 10.5.0",IDC_ABOUT_VERSION,13,45,135,10
     GROUPBOX        "Credits",IDC_STATIC,7,57,216,108
     LTEXT           "Original VP8/VP9 Team",IDC_STATIC,68,65,88,9
     LTEXT           "Randy Davis - designer, developer",IDC_STATIC,13,77,115,9
@@ -286,9 +286,10 @@ BEGIN
     LTEXT           "Fuzzel",IDC_STATIC,13,141,21,8
     LTEXT           "Koadic",IDC_STATIC,150,141,42,9
     LTEXT           "Mjr",IDC_STATIC,13,151,21,8
+    LTEXT           "DJRobX",IDC_STATIC,46,151,32,8
     CTEXT           "Mukuste",IDC_STATIC,82,151,42,9
     LTEXT           "Brandrew",IDC_STATIC,150,151,42,9
-    CTEXT           "Copyright (C) 2000-2017 Randy Davis All rights reserved",IDC_STATIC,7,255,118,19
+    CTEXT           "Copyright (C) 2000-2018 Randy Davis All rights reserved",IDC_STATIC,7,255,118,19
     LTEXT           "Translator's Name - Translation",IDC_TRANSNAME,108,35,115,9,NOT WS_VISIBLE | WS_DISABLED
     LTEXT           "Translator's web site address",IDC_TRANSWEBSITE,50,265,32,8,NOT WS_VISIBLE | WS_DISABLED
 END
@@ -685,7 +686,7 @@ BEGIN
     CTEXT           "Paused",IDC_STATIC,7,7,64,10
 END
 
-IDD_EDITOR_OPTIONS DIALOGEX 0, 0, 191, 246
+IDD_EDITOR_OPTIONS DIALOGEX 0, 0, 191, 272
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Editor Options"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
@@ -696,8 +697,8 @@ BEGIN
     EDITTEXT        IDC_AUTOSAVE_MINUTES,102,32,25,12,ES_RIGHT | ES_AUTOHSCROLL
     LTEXT           "Grid size",IDC_STATIC,117,79,29,8
     EDITTEXT        IDC_GRID_SIZE,149,77,27,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,79,231,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,131,231,50,14
+    DEFPUSHBUTTON   "OK",IDOK,79,257,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,131,257,50,14
     LTEXT           "minutes",IDC_STATIC,132,33,25,8
     CONTROL         "Properties Menu floating (needs restart)",IDC_PROP_FLOAT_CHECK,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,47,139,10
@@ -720,6 +721,8 @@ BEGIN
     PUSHBUTTON      "Default Colors",IDC_DEFAULT_COLORS_BUTTON,126,155,50,14
     CONTROL         "Group elements in collections as default",IDC_DEFAULT_GROUP_COLLECTION_CHECK,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,59,141,10
+    LTEXT           "Convert VP units to",IDC_STATIC,7,231,62,8
+    COMBOBOX        IDC_UNIT_LIST_COMBO,75,227,83,60,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_COLLECTDIALOG DIALOGEX 0, 0, 316, 167
@@ -1561,7 +1564,7 @@ BEGIN
     LTEXT           "FSS Image",IDC_STATIC,7,82,60,8
     COMBOBOX        DISPID_Image8,7,92,113,69,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     CONTROL         "FSS mode (add. BG space)",IDC_BG_FSS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,106,109,10
-    CONTROL         "Test desktop",13434,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,117,109,10
+    CONTROL         "Test Desktop",13434,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,117,109,10
     EDITTEXT        104,64,143,56,12,ES_CENTER | ES_AUTOHSCROLL
     EDITTEXT        105,64,156,56,12,ES_CENTER | ES_AUTOHSCROLL
     EDITTEXT        1040,64,169,56,12,ES_CENTER | ES_AUTOHSCROLL
@@ -1625,7 +1628,7 @@ BEGIN
     CONTROL         "Filter Mechanical Plunger",1107,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,187,111,9
 END
 
-IDD_PROPPOINT_POSITION DIALOGEX 0, 0, 125, 42
+IDD_PROPPOINT_POSITION DIALOGEX 0, 0, 125, 46
 STYLE DS_SETFONT | WS_CHILD | WS_VISIBLE
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
@@ -1633,20 +1636,24 @@ BEGIN
     EDITTEXT        2,31,23,49,12,ES_AUTOHSCROLL
     LTEXT           "&X",IDC_STATIC,7,9,8,8
     LTEXT           "&Y",IDC_STATIC,7,25,8,8
+    PUSHBUTTON      "Copy",IDC_POINT_COPY_BUTTON,95,7,27,12
+    PUSHBUTTON      "Paste",IDC_POINT_PASTE_BUTTON,95,23,27,12
 END
 
 IDD_PROPPOINT_POSITION_WITHZ DIALOGEX 0, 0, 125, 77
 STYLE DS_SETFONT | WS_CHILD | WS_VISIBLE
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    EDITTEXT        1,54,7,38,12,ES_AUTOHSCROLL
-    EDITTEXT        2,54,23,38,12,ES_AUTOHSCROLL
-    EDITTEXT        6,54,39,38,12,ES_AUTOHSCROLL
+    EDITTEXT        1,52,7,38,12,ES_AUTOHSCROLL
+    EDITTEXT        2,52,23,38,12,ES_AUTOHSCROLL
+    EDITTEXT        6,52,39,38,12,ES_AUTOHSCROLL
     LTEXT           "&X",IDC_STATIC,7,9,25,8
     LTEXT           "&Y",IDC_STATIC,7,25,25,8
-    LTEXT           "Height Offset",IDC_STATIC,7,41,46,8
-    EDITTEXT        IDC_CALC_HEIGHT_EDIT,54,55,38,12,ES_AUTOHSCROLL | ES_READONLY
+    LTEXT           "Height Offset",IDC_STATIC,7,41,43,8
+    EDITTEXT        IDC_CALC_HEIGHT_EDIT,52,55,38,12,ES_AUTOHSCROLL | ES_READONLY
     LTEXT           "Real Height",IDC_STATIC,7,56,38,8
+    PUSHBUTTON      "Copy",IDC_POINT_COPY_BUTTON,95,7,23,12
+    PUSHBUTTON      "Paste",IDC_POINT_PASTE_BUTTON,95,23,23,12
 END
 
 IDD_PROPPOINT_VISUALS DIALOGEX 0, 0, 125, 22
@@ -2365,7 +2372,7 @@ BEGIN
     IDD_EDITOR_OPTIONS, DIALOG
     BEGIN
         RIGHTMARGIN, 185
-        BOTTOMMARGIN, 245
+        BOTTOMMARGIN, 271
     END
 
     IDD_COLLECTDIALOG, DIALOG
@@ -2717,8 +2724,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 10,4,0,0
- PRODUCTVERSION 10,4,0,0
+ FILEVERSION 10,5,0,0
+ PRODUCTVERSION 10,5,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -2733,13 +2740,13 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "FileDescription", "Visual Pinball 10.4.0"
-            VALUE "FileVersion", "10, 4, 0, 0"
+            VALUE "FileDescription", "Visual Pinball 10.5.0"
+            VALUE "FileVersion", "10, 5, 0, 0"
             VALUE "InternalName", "Visual Pinball"
-            VALUE "LegalCopyright", "Copyright 2000-2017"
+            VALUE "LegalCopyright", "Copyright 2000-2018"
             VALUE "OriginalFilename", "VPinballX.exe"
             VALUE "ProductName", "Visual Pinball"
-            VALUE "ProductVersion", "10, 4, 0, 0"
+            VALUE "ProductVersion", "10, 5, 0, 0"
         END
     END
     BLOCK "VarFileInfo"

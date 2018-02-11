@@ -88,18 +88,15 @@ public:
    virtual ItemTypeEnum HitableGetItemType() { return eItemKicker; }
 
    void WriteRegDefaults();
-   void GenerateCupMesh(Vertex3D_NoTex2 *buf);
-   void GenerateGottliebMesh(Vertex3D_NoTex2 *buf);
-   void GenerateWilliamsMesh(Vertex3D_NoTex2 *buf);
-   void GenerateHoleMesh(Vertex3D_NoTex2 *buf);
-   void GenerateSimpleHoleMesh(Vertex3D_NoTex2 *buf);
-   void GenerateT1Mesh(Vertex3D_NoTex2 *buf);
-
-   PinTable *m_ptable;
+   void GenerateMesh(Vertex3D_NoTex2 *const buf);
+   void UpdateUnitsInfo();
 
    KickerData m_d;
-
    std::vector<Vertex3Ds> hitMesh;
+
+private:
+   PinTable *m_ptable;
+
    KickerHitCircle *m_phitkickercircle;
 
    VertexBuffer *vertexBuffer;
@@ -109,12 +106,13 @@ public:
 
    Texture texture;
 
-   float  m_baseHeight;
+   float m_baseHeight;
 
    VertexBuffer *plateVertexBuffer;
-   IndexBuffer *plateIndexBuffer;
-   // IKicker
+   IndexBuffer  *plateIndexBuffer;
+
 public:
+   // IKicker
    STDMETHOD(get_Material)(/*[out, retval]*/ BSTR *pVal);
    STDMETHOD(put_Material)(/*[in]*/ BSTR newVal);
    STDMETHOD(get_DrawStyle)(/*[out, retval]*/ KickerType *pVal);
@@ -157,7 +155,7 @@ public:
 class KickerHitCircle : public HitCircle
 {
 public:
-   KickerHitCircle(const Vertex2D& c, float r, float zlow, float zhigh)
+   KickerHitCircle(const Vertex2D& c, const float r, const float zlow, const float zhigh)
       : HitCircle(c,r,zlow,zhigh)
    {
       m_pball = NULL;
@@ -165,15 +163,15 @@ public:
       m_pkicker = NULL;
    }
 
-   virtual float HitTest(const Ball * const pball, const float dtime, CollisionEvent& coll);
+   virtual float HitTest(const Ball * const pball, const float dtime, CollisionEvent& coll) const;
    virtual int GetType() const { return eTrigger; }
-   virtual void Collide(CollisionEvent& coll)  { DoCollide(coll.ball, coll.hitnormal, coll.hitflag, false); }
+   virtual void Collide(CollisionEvent& coll)  { DoCollide(coll.m_ball, coll.m_hitnormal, coll.m_hitflag, false); }
 
-   void DoChangeBallVelocity(Ball * const pball, const Vertex3Ds& hitnormal);
+   void DoChangeBallVelocity(Ball * const pball, const Vertex3Ds& hitnormal) const;
    void DoCollide(Ball * const pball, const Vertex3Ds& hitnormal, const bool hitflag, const bool newBall);
 
    Kicker *m_pkicker;
-   Ball *m_pball;  //The ball inside this kicker
+   Ball *m_pball;  // The ball inside this kicker
    Ball *m_lastCapturedBall; // same as m_pball but this one won't be nulled only overwritten from another captured ball
 };
 

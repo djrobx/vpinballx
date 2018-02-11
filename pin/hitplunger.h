@@ -1,8 +1,8 @@
 #pragma once
-class PlungerAnimObject : public AnimObject
+class PlungerMoverObject : public MoverObject
 {
 public:
-   PlungerAnimObject()
+   PlungerMoverObject()
    {
       // clear the mech plunger reading history
       m_mech0 = m_mech1 = m_mech2 = 0.0f;
@@ -11,13 +11,11 @@ public:
    virtual void UpdateDisplacements(const float dtime);
    virtual void UpdateVelocities();
 
-   virtual bool FMover() const { return true; }
-
-   virtual void Animate() { }
+   virtual bool AddToList() const { return true; }
 
    void SetObjects(const float len);
 
-   float mechPlunger() const; // Returns mechanical plunger position 0 at rest, +1 pulled (fully extended)
+   float MechPlunger() const; // Returns mechanical plunger position 0 at rest, +1 pulled (fully extended)
 
    void PullBack(float speed);
    void Fire(float startPos);
@@ -79,7 +77,7 @@ public:
    // Mass of the moving parts.  This is in arbitrary units, and serves
    // as a scaling factor in some of the plunger speed calculations.
    //
-   //Thist was probably originally conceived with good intentions of
+   // This was probably originally conceived with good intentions of
    // doing a more thorough Physics model, but the way it's actually
    // implemented, it's just a constant scaling factor that probably
    // should have been absorbed into the other arbitrary-units factors
@@ -231,8 +229,7 @@ public:
    float m_scatterVelocity;
 };
 
-class HitPlunger :
-   public HitObject
+class HitPlunger : public HitObject
 {
 public:
    HitPlunger(const float x, const float y, const float x2,
@@ -241,14 +238,13 @@ public:
       Plunger * const pPlunger);
    ~HitPlunger() {}
 
-   virtual float HitTest(const Ball * const pball, const float dtime, CollisionEvent& coll);
+   virtual float HitTest(const Ball * const pball, const float dtime, CollisionEvent& coll) const;
    virtual int GetType() const { return ePlunger; }
    virtual void Collide(CollisionEvent& coll);
-   virtual void Contact(CollisionEvent& coll, const float dtime);
-   virtual void CalcHitRect();
-   virtual AnimObject *GetAnimObject() { return &m_plungeranim; }
+   virtual void CalcHitBBox();
+   virtual MoverObject *GetMoverObject() { return &m_plungerMover; }
 
-   PlungerAnimObject m_plungeranim;
+   PlungerMoverObject m_plungerMover;
 
    Plunger *m_pplunger;
 };

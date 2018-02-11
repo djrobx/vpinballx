@@ -12,6 +12,8 @@
 class IHaveDragPoints
 {
 public:
+   IHaveDragPoints();
+
    virtual ~IHaveDragPoints();
 
    virtual IEditable *GetIEditable() = 0;
@@ -42,6 +44,9 @@ public:
    void GetTextureCoords(const std::vector<RenderVertex> & vv, float **ppcoords);
 
    friend class DragPoint;
+
+   PropertyPane *m_propVisuals;
+   PropertyPane *m_propPosition;
 
 protected:
    template <typename T>
@@ -125,7 +130,7 @@ public:
    virtual void OnLButtonUp(int x, int y);
    virtual void MoveOffset(const float dx, const float dy);
    virtual void SetObjectPos();
-   virtual ItemTypeEnum GetItemType() { return eItemDragPoint; }
+   virtual ItemTypeEnum GetItemType() const { return eItemDragPoint; }
 
    // Multi-object manipulation
    virtual void GetCenter(Vertex2D * const pv) const;
@@ -141,6 +146,9 @@ public:
    virtual void GetDialogPanes(Vector<PropertyPane> *pvproppane);
 
    virtual int GetSelectLevel() { return 2; } // So dragpoints won't be band-selected with the main objects
+
+   void Copy();
+   void Paste();
 
    BEGIN_COM_MAP(DragPoint)
       COM_INTERFACE_ENTRY(IDispatch)
@@ -183,6 +191,9 @@ public:
    bool m_fSmooth;
    bool m_fSlingshot;
    bool m_fAutoTexture;
+   static Vertex3Ds m_copyPoint;       /*coordinates of a control point to copy*/
+   static bool      m_pointCopied;
+
 };
 
 #endif // !defined(AFX_DRAGPOINT_H__E0C074C9_5BF2_4F8C_8012_76082BAC2203__INCLUDED_)

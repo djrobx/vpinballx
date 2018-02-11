@@ -540,7 +540,7 @@ void Primitive::AddHitEdge(Vector<HitObject> * pvho, std::set< std::pair<unsigne
 
 void Primitive::SetupHitObject(Vector<HitObject> * pvho, HitObject * obj)
 {
-   Material *mat = m_ptable->GetMaterial( m_d.m_szPhysicsMaterial );
+   const Material * const mat = m_ptable->GetMaterial( m_d.m_szPhysicsMaterial );
    if ( mat != NULL && !m_d.m_fOverwritePhysics )
    {
       obj->m_elasticity = mat->m_fElasticity;
@@ -559,9 +559,10 @@ void Primitive::SetupHitObject(Vector<HitObject> * pvho, HitObject * obj)
    obj->m_threshold = m_d.m_threshold;
    obj->m_ObjType = ePrimitive;
    obj->m_fEnabled = m_d.m_fCollidable;
+   obj->m_obj = (IFireEvents *) this;
    if (m_d.m_fHitEvent)
-      obj->m_pfe = (IFireEvents *)this;
-   obj->m_pe = this;
+      obj->m_fe = true;
+   obj->m_e = true;
 
    pvho->AddElement(obj);
    m_vhoCollidable.push_back(obj);	//remember hit components of primitive
@@ -739,6 +740,22 @@ void Primitive::RenderBlueprint(Sur *psur, const bool solid)
    psur->SetLineColor(RGB(0, 0, 0), false, 1);
    psur->SetObject(this);
 
+   if(solid && m_d.m_use3DMesh)
+   {
+       for(unsigned i = 0; i < m_mesh.NumIndices(); i += 3)
+       {
+           const Vertex3Ds * const A = &vertices[m_mesh.m_indices[i]];
+           const Vertex3Ds * const B = &vertices[m_mesh.m_indices[i + 1]];
+           const Vertex3Ds * const C = &vertices[m_mesh.m_indices[i + 2]];
+
+           Vertex2D rv[3];
+           rv[0].x = C->x; rv[0].y = C->y;
+           rv[1].x = B->x; rv[1].y = B->y;
+           rv[2].x = A->x; rv[2].y = A->y;
+           psur->Polygon(rv, 3);
+       }
+       return;
+   }
    if ((m_d.m_edgeFactorUI <= 0.0f) || (m_d.m_edgeFactorUI >= 1.0f) || !m_d.m_use3DMesh)
    {
       if (!m_d.m_use3DMesh || (m_d.m_edgeFactorUI >= 1.0f) || (m_mesh.NumVertices() <= 100)) // small mesh: draw all triangles
@@ -2201,6 +2218,7 @@ STDMETHODIMP Primitive::put_DrawTexturesInside(VARIANT_BOOL newVal)
 STDMETHODIMP Primitive::get_X(float *pVal)
 {
    *pVal = m_d.m_vPosition.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }

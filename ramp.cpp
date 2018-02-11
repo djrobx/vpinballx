@@ -42,6 +42,15 @@ Ramp::~Ramp()
        delete [] rgheightInit;
 }
 
+void Ramp::UpdateUnitsInfo()
+{
+   char tbuf[128];
+   sprintf_s(tbuf, "TopH: %.03f | BottomH: %0.3f | TopW: %.03f | BottomW: %.03f | LeftW: %.03f | RightW: %.3f", g_pvp->ConvertToUnit(m_d.m_heighttop), g_pvp->ConvertToUnit(m_d.m_heightbottom), 
+                                                                                  g_pvp->ConvertToUnit(m_d.m_widthtop), g_pvp->ConvertToUnit(m_d.m_widthbottom),
+                                                                                  g_pvp->ConvertToUnit(m_d.m_leftwallheight), g_pvp->ConvertToUnit(m_d.m_rightwallheight));
+   g_pvp->SetStatusBarUnitInfo(tbuf);
+}
+
 
 bool Ramp::IsTransparent()
 {
@@ -807,7 +816,7 @@ void Ramp::CheckJoint(Vector<HitObject> * const pvho, const HitTriangle * const 
 {
    if (ph3d1)   // may be null in case of degenerate triangles
    {
-      const Vertex3Ds vjointnormal = CrossProduct(ph3d1->normal, ph3d2->normal);
+      const Vertex3Ds vjointnormal = CrossProduct(ph3d1->m_normal, ph3d2->m_normal);
       if (vjointnormal.LengthSquared() < 1e-8f)
          return;  // coplanar triangles need no joints
    }
@@ -857,10 +866,11 @@ void Ramp::SetupHitObject(Vector<HitObject> * pvho, HitObject * obj)
    // the ramp is of type ePrimitive for triggering the event in HitTriangle::Collide()
    obj->m_ObjType = ePrimitive;
    obj->m_fEnabled = m_d.m_fCollidable;
+   obj->m_obj = (IFireEvents*) this;
    if (m_d.m_fHitEvent)
-      obj->m_pfe = (IFireEvents *)this;
+      obj->m_fe = true;
    else
-      obj->m_pfe = NULL;
+      obj->m_fe = false;
 
    pvho->AddElement(obj);
    m_vhoCollidable.push_back(obj); //remember hit components of primitive
@@ -1599,6 +1609,7 @@ STDMETHODIMP Ramp::InterfaceSupportsErrorInfo(REFIID riid)
 STDMETHODIMP Ramp::get_HeightBottom(float *pVal)
 {
    *pVal = m_d.m_heightbottom;
+   UpdateUnitsInfo();
 
    return S_OK;
 }
@@ -1611,6 +1622,7 @@ STDMETHODIMP Ramp::put_HeightBottom(float newVal)
 
       m_d.m_heightbottom = newVal;
       dynamicVertexBufferRegenerate = true;
+      UpdateUnitsInfo();
 
       STOPUNDO
    }
@@ -1621,6 +1633,7 @@ STDMETHODIMP Ramp::put_HeightBottom(float newVal)
 STDMETHODIMP Ramp::get_HeightTop(float *pVal)
 {
    *pVal = m_d.m_heighttop;
+   UpdateUnitsInfo();
 
    return S_OK;
 }
@@ -1633,6 +1646,7 @@ STDMETHODIMP Ramp::put_HeightTop(float newVal)
 
       m_d.m_heighttop = newVal;
       dynamicVertexBufferRegenerate = true;
+      UpdateUnitsInfo();
 
       STOPUNDO
    }
@@ -1643,7 +1657,7 @@ STDMETHODIMP Ramp::put_HeightTop(float newVal)
 STDMETHODIMP Ramp::get_WidthBottom(float *pVal)
 {
    *pVal = m_d.m_widthbottom;
-
+   UpdateUnitsInfo();
    return S_OK;
 }
 
@@ -1655,6 +1669,7 @@ STDMETHODIMP Ramp::put_WidthBottom(float newVal)
 
       m_d.m_widthbottom = newVal;
       dynamicVertexBufferRegenerate = true;
+      UpdateUnitsInfo();
 
       STOPUNDO
    }
@@ -1665,6 +1680,7 @@ STDMETHODIMP Ramp::put_WidthBottom(float newVal)
 STDMETHODIMP Ramp::get_WidthTop(float *pVal)
 {
    *pVal = m_d.m_widthtop;
+   UpdateUnitsInfo();
 
    return S_OK;
 }
@@ -1677,6 +1693,7 @@ STDMETHODIMP Ramp::put_WidthTop(float newVal)
 
       m_d.m_widthtop = newVal;
       dynamicVertexBufferRegenerate = true;
+      UpdateUnitsInfo();
 
       STOPUNDO
    }

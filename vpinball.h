@@ -63,6 +63,7 @@ public:
    void SetPosCur(float x, float y);
    void SetObjectPosCur(float x, float y);
    void ClearObjectPosCur();
+   float ConvertToUnit(float value);
    void SetPropSel(VectorProtected<ISelect> *pvsel);
 
    void DeletePropSel(void);
@@ -145,9 +146,12 @@ public:
 
    bool m_fBackglassView; // Whether viewing the playfield or screen layout
 
+   bool m_fPropertiesFloating;
+
    bool m_fAlwaysDrawDragPoints;
    bool m_fAlwaysDrawLightCenters;
    int m_gridSize;
+   int m_convertToUnit; //0=Inches, 1=Millimeters, 2=VPUnits
 
    int m_securitylevel;
 
@@ -165,7 +169,8 @@ public:
 
    HMENU GetMainMenu(int id);
    void SetStatusBarElementInfo(const char *info);
-   bool m_fPropertiesFloating;
+   void SetStatusBarUnitInfo(const char *info);
+
    Material dummyMaterial;
    COLORREF m_elemSelectColor;
    COLORREF m_elemSelectLockedColor;

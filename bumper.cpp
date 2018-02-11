@@ -24,6 +24,8 @@ Bumper::Bumper()
    memset(m_d.m_szRingMaterial, 0, 32);
    memset(m_d.m_szSurface, 0, MAXTOKEN);
    m_ringDown = false;
+   m_skirtAnimate = false;
+   m_skirtCounter = 0.0f;
 }
 
 Bumper::~Bumper()
@@ -307,8 +309,7 @@ void Bumper::GetHitShapes(Vector<HitObject> * const pvho)
 
    BumperHitCircle * const phitcircle = new BumperHitCircle(m_d.m_vCenter,m_d.m_radius,height,height+m_d.m_heightScale);
 
-   phitcircle->m_pfe = NULL;
-   phitcircle->m_bumperanim.m_fHitEvent = m_d.m_fHitEvent;
+   phitcircle->m_bumperanim_fHitEvent = m_d.m_fHitEvent;
    phitcircle->m_fEnabled = m_d.m_fCollidable;
    phitcircle->m_scatter = ANGTORAD(m_d.m_scatter);
 
@@ -317,16 +318,14 @@ void Bumper::GetHitShapes(Vector<HitObject> * const pvho)
    pvho->AddElement(phitcircle);
 
    m_pbumperhitcircle = phitcircle;
-
-   phitcircle->m_bumperanim.m_fVisible = m_d.m_fBaseVisible;
 }
 
 void Bumper::GetHitShapesDebug(Vector<HitObject> * const pvho)
 {
    const float height = m_ptable->GetSurfaceHeight(m_d.m_szSurface, m_d.m_vCenter.x, m_d.m_vCenter.y);
 
-   HitObject * const pho = CreateCircularHitPoly(m_d.m_vCenter.x, m_d.m_vCenter.y, height + m_d.m_heightScale, m_d.m_radius, 32);
-   pvho->AddElement(pho);
+   Hit3DPoly * const pcircle = new Hit3DPoly(m_d.m_vCenter.x, m_d.m_vCenter.y, height + m_d.m_heightScale, m_d.m_radius, 32);
+   pvho->AddElement(pcircle);
 }
 
 void Bumper::EndPlay()
@@ -389,7 +388,7 @@ void Bumper::UpdateRing(RenderDevice *pd3dDevice)
    {
       buf[i].x = m_ringVertices[i].x;
       buf[i].y = m_ringVertices[i].y;
-      buf[i].z = m_ringVertices[i].z + m_pbumperhitcircle->m_bumperanim.m_ringAnimOffset;
+      buf[i].z = m_ringVertices[i].z + m_pbumperhitcircle->m_bumperanim_ringAnimOffset;
       buf[i].nx = m_ringVertices[i].nx;
       buf[i].ny = m_ringVertices[i].ny;
       buf[i].nz = m_ringVertices[i].nz;
@@ -433,6 +432,63 @@ void Bumper::RenderCap(RenderDevice *pd3dDevice, const Material * const capMater
    pd3dDevice->basicShader->End();
 }
 
+void Bumper::UpdateSkirt(RenderDevice *pd3dDevice, const bool doCalculation)
+{
+   const float SKIRT_TILT = 5.0f;
+
+   const float scalexy = m_d.m_radius*2.0f;
+   float rotx=0.0f, roty=0.0f;
+
+   if (doCalculation)
+   {
+      const float hitx = m_pbumperhitcircle->m_bumperanim_hitBallPosition.x;
+      const float hity = m_pbumperhitcircle->m_bumperanim_hitBallPosition.y;
+      float dy = fabsf(hity - m_d.m_vCenter.y);
+      if (dy == 0.0f)
+         dy = 0.000001f;
+      const float dx = fabsf(hitx - m_d.m_vCenter.x);
+      const float skirtA = atanf(dx / dy);
+      rotx = cosf(skirtA)*SKIRT_TILT;
+      roty = sinf(skirtA)*SKIRT_TILT;
+      if (m_d.m_vCenter.y < hity)
+         rotx = -rotx;
+      if (m_d.m_vCenter.x > hitx)
+         roty = -roty;
+   }
+
+   Matrix3D tempMatrix, rMatrix;
+   rMatrix.SetIdentity();
+
+   tempMatrix.RotateZMatrix(ANGTORAD(m_d.m_orientation));
+   tempMatrix.Multiply(rMatrix, rMatrix);
+
+   tempMatrix.RotateYMatrix(ANGTORAD(roty));
+   tempMatrix.Multiply(rMatrix, rMatrix);
+   tempMatrix.RotateXMatrix(ANGTORAD(rotx));
+   tempMatrix.Multiply(rMatrix, rMatrix);
+
+   Vertex3D_NoTex2 *buf;
+   m_socketVertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::DISCARDCONTENTS);
+   for (int i = 0; i < bumperSocketNumVertices; i++)
+   {
+      Vertex3Ds vert(bumperSocket[i].x, bumperSocket[i].y, bumperSocket[i].z);
+      vert = rMatrix.MultiplyVector(vert);
+      buf[i].x = vert.x*scalexy + m_d.m_vCenter.x;
+      buf[i].y = vert.y*scalexy + m_d.m_vCenter.y;
+      // scale z by 0.6 to make the skirt a bit more flat
+      buf[i].z = (0.6f*vert.z*m_d.m_heightScale)*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set] + (m_baseHeight + 5.0f);
+
+      vert = Vertex3Ds(bumperSocket[i].nx, bumperSocket[i].ny, bumperSocket[i].nz);
+      vert = rMatrix.MultiplyVectorNoTranslate(vert);
+      buf[i].nx = vert.x;
+      buf[i].ny = vert.y;
+      buf[i].nz = vert.z;
+      buf[i].tu = bumperSocket[i].tu;
+      buf[i].tv = bumperSocket[i].tv;
+   }
+   m_socketVertexBuffer->unlock();
+}
+
 void Bumper::PostRenderStatic(RenderDevice* pd3dDevice)
 {
    TRACE_FUNCTION();
@@ -451,15 +507,15 @@ void Bumper::PostRenderStatic(RenderDevice* pd3dDevice)
    pd3dDevice->SetRenderState(RenderDevice::ZWRITEENABLE, TRUE);
    pd3dDevice->SetRenderState(RenderDevice::CULLMODE, D3DCULL_CCW);
 
+   const int state = m_pbumperhitcircle->m_bumperanim_fHitEvent ? 1 : 0;    // 0 = not hit, 1 = hit
+
    if (m_d.m_fRingVisible)
    {
-      const int state = m_pbumperhitcircle->m_bumperanim.m_fHitEvent ? 1 : 0;    // 0 = not hit, 1 = hit
-
       if (state == 1)
       {
          m_ringAnimate = true;
          m_ringDown = true;
-         m_pbumperhitcircle->m_bumperanim.m_fHitEvent = false;
+         m_pbumperhitcircle->m_bumperanim_fHitEvent = false;
       }
 
       if (m_ringAnimate)
@@ -468,24 +524,25 @@ void Bumper::PostRenderStatic(RenderDevice* pd3dDevice)
          const float limit = 45.f*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set];
          if (m_ringDown)
             step = -step;
-         m_pbumperhitcircle->m_bumperanim.m_ringAnimOffset += step*diff_time_msec;
+         m_pbumperhitcircle->m_bumperanim_ringAnimOffset += step*diff_time_msec;
          if (m_ringDown)
          {
-            if (m_pbumperhitcircle->m_bumperanim.m_ringAnimOffset <= -limit)
+            if (m_pbumperhitcircle->m_bumperanim_ringAnimOffset <= -limit)
             {
-               m_pbumperhitcircle->m_bumperanim.m_ringAnimOffset = -limit;
+               m_pbumperhitcircle->m_bumperanim_ringAnimOffset = -limit;
                m_ringDown = false;
             }
          }
          else
          {
-            if (m_pbumperhitcircle->m_bumperanim.m_ringAnimOffset >= 0.0f)
+            if (m_pbumperhitcircle->m_bumperanim_ringAnimOffset >= 0.0f)
             {
-               m_pbumperhitcircle->m_bumperanim.m_ringAnimOffset = 0.0f;
+               m_pbumperhitcircle->m_bumperanim_ringAnimOffset = 0.0f;
                m_ringAnimate = false;
             }
          }
-         UpdateRing(pd3dDevice);
+         if(m_ringVertexBuffer)
+            UpdateRing(pd3dDevice);
       }
 
       if (m_ringMaterial.m_bIsMetal)
@@ -502,16 +559,31 @@ void Bumper::PostRenderStatic(RenderDevice* pd3dDevice)
       pd3dDevice->DrawIndexedPrimitiveVB(D3DPT_TRIANGLELIST, MY_D3DFVF_NOTEX2_VERTEX, m_ringVertexBuffer, 0, bumperRingNumVertices, m_ringIndexBuffer, 0, bumperRingNumFaces);
       pd3dDevice->basicShader->End();
    }
+
    if (m_d.m_fSkirtVisible)
    {
-      const Material *mat = m_ptable->GetMaterial(m_d.m_szSkirtMaterial);
-      if (mat->m_bOpacityActive)
+      if (state == 1)
       {
-         pd3dDevice->basicShader->SetTechnique(mat->m_bIsMetal ? "basic_with_texture_isMetal" : "basic_with_texture_isNotMetal");
-         pd3dDevice->SetRenderState(RenderDevice::CULLMODE, D3DCULL_NONE);
-         RenderSocket(pd3dDevice, mat);
+         m_skirtAnimate = true;
+         UpdateSkirt(pd3dDevice, true);
+         m_skirtCounter = 0.0f;
       }
+      if (m_skirtAnimate)
+      {
+         m_skirtCounter += /*1.0f**/diff_time_msec;
+         if (m_skirtCounter > 160.0f)
+         {
+            m_skirtAnimate = false;
+            UpdateSkirt(pd3dDevice, false);
+         }
+      }
+
+      const Material *mat = m_ptable->GetMaterial(m_d.m_szSkirtMaterial);
+      pd3dDevice->basicShader->SetTechnique(mat->m_bIsMetal ? "basic_without_texture_isMetal" : "basic_without_texture_isNotMetal");
+      pd3dDevice->SetRenderState(RenderDevice::CULLMODE, D3DCULL_NONE);
+      RenderSocket(pd3dDevice, mat);
    }
+
 
    if (m_d.m_fBaseVisible)
    {
@@ -579,7 +651,7 @@ void Bumper::ExportMesh(FILE *f)
    {
       Vertex3D_NoTex2 *socket = new Vertex3D_NoTex2[bumperSocketNumVertices];
       strcpy_s(subObjName, name);
-      strcat_s(subObjName, "Socket");
+      strcat_s(subObjName, "Skirt");
       WaveFrontObj_WriteObjectName(f, subObjName);
 
       GenerateSocketMesh(socket);
@@ -641,7 +713,7 @@ void Bumper::GenerateSocketMesh(Vertex3D_NoTex2 *buf)
       buf[i].x = vert.x*scalexy + m_d.m_vCenter.x;
       buf[i].y = vert.y*scalexy + m_d.m_vCenter.y;
       // scale z by 0.6 to make the skirt a bit more flat
-      buf[i].z = (0.6f*vert.z*m_d.m_heightScale)*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set] + m_baseHeight;
+      buf[i].z = (0.6f*vert.z*m_d.m_heightScale)*m_ptable->m_BG_scalez[m_ptable->m_BG_current_set] + m_baseHeight+5.0f;
 
       vert = Vertex3Ds(bumperSocket[i].nx, bumperSocket[i].ny, bumperSocket[i].nz);
       vert = m_fullMatrix.MultiplyVectorNoTranslate(vert);
@@ -733,10 +805,6 @@ void Bumper::RenderSetup(RenderDevice* pd3dDevice)
          m_socketVertexBuffer->release();
       pd3dDevice->CreateVertexBuffer(bumperSocketNumVertices, 0, MY_D3DFVF_NOTEX2_VERTEX, &m_socketVertexBuffer);
 
-      Vertex3D_NoTex2 *buf;
-      m_socketVertexBuffer->lock(0, 0, (void**)&buf, VertexBuffer::WRITEONLY);
-      GenerateSocketMesh(buf);
-      m_socketVertexBuffer->unlock();
    }
 
    if (m_d.m_fRingVisible)
@@ -806,16 +874,6 @@ void Bumper::RenderStatic(RenderDevice* pd3dDevice)
       {
          pd3dDevice->basicShader->SetTechnique(mat->m_bIsMetal ? "basic_without_texture_isMetal" : "basic_without_texture_isNotMetal");
          RenderBase(pd3dDevice, mat);
-      }
-   }
-
-   if (m_d.m_fSkirtVisible)
-   {
-      const Material *mat = m_ptable->GetMaterial(m_d.m_szSkirtMaterial);
-      if (!mat->m_bOpacityActive)
-      {
-         pd3dDevice->basicShader->SetTechnique(mat->m_bIsMetal ? "basic_without_texture_isMetal" : "basic_without_texture_isNotMetal");
-         RenderSocket(pd3dDevice, mat);
       }
    }
 
@@ -1048,7 +1106,6 @@ STDMETHODIMP Bumper::put_Radius(float newVal)
 STDMETHODIMP Bumper::get_Force(float *pVal)
 {
    *pVal = m_d.m_force;
-
    return S_OK;
 }
 
@@ -1243,6 +1300,7 @@ STDMETHODIMP Bumper::put_SkirtMaterial(BSTR newVal)
 STDMETHODIMP Bumper::get_X(float *pVal)
 {
    *pVal = m_d.m_vCenter.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }
@@ -1437,7 +1495,7 @@ STDMETHODIMP Bumper::put_ReflectionEnabled(VARIANT_BOOL newVal)
 STDMETHODIMP Bumper::PlayHit()
 {
     if ( m_pbumperhitcircle )
-        m_pbumperhitcircle->m_bumperanim.m_fHitEvent=true;
+        m_pbumperhitcircle->m_bumperanim_fHitEvent=true;
     return S_OK;
 }
 

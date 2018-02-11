@@ -464,8 +464,8 @@ void Light::GetHitShapesDebug(Vector<HitObject> * const pvho)
    {
    case ShapeCircle:
    default: {
-      HitObject * const pho = CreateCircularHitPoly(m_d.m_vCenter.x, m_d.m_vCenter.y, height, m_d.m_falloff, 32);
-      pvho->AddElement(pho);
+      Hit3DPoly * const pcircle = new Hit3DPoly(m_d.m_vCenter.x, m_d.m_vCenter.y, height, m_d.m_falloff, 32);
+      pvho->AddElement(pcircle);
 
       break;
    }
@@ -1461,6 +1461,7 @@ STDMETHODIMP Light::put_ColorFull(OLE_COLOR newVal)
 STDMETHODIMP Light::get_X(float *pVal)
 {
    *pVal = m_d.m_vCenter.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }

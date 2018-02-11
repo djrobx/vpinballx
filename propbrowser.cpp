@@ -331,7 +331,7 @@ void SmartBrowser::CreateFromDispatch(HWND hwndParent, VectorProtected<ISelect> 
       pexinfo->m_dialogheight = rcDialog.bottom - rcDialog.top;
 
       // A little hack - if we have multi-select, we know the Name property
-      // can never be use.  Disable it to make that easy to understand for the
+      // can never be used.  Disable it to make that easy to understand for the
       // user.
       if (m_pvsel && m_pvsel->Size() > 1)
       {
@@ -370,12 +370,8 @@ void SmartBrowser::CreateFromDispatch(HWND hwndParent, VectorProtected<ISelect> 
 
    if (m_pvsel)
    {
-      for (int i = 0; i < m_pvsel->Size(); i++)
-      {
-         ISelect *pisel2 = m_pvsel->ElementAt(i);
-         if ( pisel2 )
-            pisel2->UpdatePropertyPanes();
-      }
+      if (m_pvsel->Size() >= 1)
+         m_pvsel->ElementAt(0)->UpdatePropertyPanes();
    }
    LeaveCriticalSection(&m_hPropertyLock);
 
@@ -589,6 +585,10 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
    IDispatch * const pdisp = GetBaseIDisp();
    int type = eNotControl;
 
+   // Get value of first object in multi-select
+   // If there is only one object in list, we just end up using that value
+   DISPID dispid = GetDlgCtrlID(hwndControl);
+
    if (pdisp == NULL)
       return;
 
@@ -623,10 +623,6 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
       0
    };
 
-   // Get value of first object in multi-select
-   // If there is only one object in list, we just end up using that value
-
-   DISPID dispid = GetDlgCtrlID(hwndControl);
 
    // We use a fake name id in the property browser since the official OLE
    // name id is greater than 0xffff, which doesn't work as a
@@ -636,14 +632,13 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
 
    CComVariant var, varResult;
    HRESULT hr = pdisp->Invoke(dispid, IID_NULL, LOCALE_USER_DEFAULT, DISPATCH_PROPERTYGET, &dispparams, &var, NULL, NULL);
-
    // Check each selection in a multiple selection and see if everything
    // has the same value.  If not, set a ninched state to the control
    for (int i = 1; i < m_pvsel->Size(); i++)
    {
       CComVariant varCheck;
-
-      hr = m_pvsel->ElementAt(i)->GetDispatch()->Invoke(
+      ISelect *const ptr = m_pvsel->ElementAt(i);
+      hr = ptr->GetDispatch()->Invoke(
          dispid, IID_NULL,
          LOCALE_USER_DEFAULT,
          DISPATCH_PROPERTYGET,
@@ -660,6 +655,8 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
       {
          hrEqual = VarCmp(&var, &varCheck, 0x409, 0);
       }
+      if(ptr->GetItemType() == eItemDragPoint && m_prevSelection!=ptr)
+          m_prevSelection = ptr;
 
       if (hrEqual != VARCMP_EQ)
       {
@@ -688,7 +685,7 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
       {
          DWORD a, b;
          SendMessage(hwndControl, EM_GETSEL, (WPARAM)&a, (WPARAM)&b);
-         LRESULT len = SendMessage(hwndControl, WM_GETTEXTLENGTH, 0, 0);
+         const LRESULT len = SendMessage(hwndControl, WM_GETTEXTLENGTH, 0, 0);
          if (a == 0 && b == len)
             reSel = true;
       }
@@ -701,7 +698,6 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
             wzT = V_BSTR(&varResult);
 
             char szT[512 + 1];
-
             WideCharToMultiByte(CP_ACP, 0, wzT, -1, szT, 512, NULL, NULL);
 
             SetWindowText(hwndControl, szT);
@@ -711,6 +707,29 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
       else
          SetWindowText(hwndControl, "");
 
+      if(m_pvsel->Size() > 1)
+      {
+          const ISelect *const mainItem = m_pvsel->ElementAt(0);
+
+          if(mainItem->GetItemType() == eItemDragPoint)
+          {
+              if(m_prevSelection != mainItem)
+              {
+                  const DragPoint *const pMainPoint = (DragPoint*)mainItem;
+                  const DragPoint *const mSecondPoint = (DragPoint*)m_prevSelection;
+                  const float dx = fabsf(pMainPoint->m_v.x - mSecondPoint->m_v.x);
+                  const float dy = fabsf(pMainPoint->m_v.y - mSecondPoint->m_v.y);
+                  const float dz = fabsf(pMainPoint->m_v.z - mSecondPoint->m_v.z);
+                  const float dh = fabsf(pMainPoint->m_calcHeight - mSecondPoint->m_calcHeight);
+
+                  char tbuf[64];
+                  sprintf_s(tbuf, "DX: %.3f | DY: %.3f | DZ: %.3f | CalcHeight: %.3f", g_pvp->ConvertToUnit(dx), g_pvp->ConvertToUnit(dy),
+                                                                                       g_pvp->ConvertToUnit(dz), g_pvp->ConvertToUnit(dh));
+                  g_pvp->SetStatusBarUnitInfo(tbuf);
+
+              }
+          }
+      }
       // re-select the text if it was selected on entry
       if (reSel)
          SendMessage(hwndControl, EM_SETSEL, (WPARAM)0, (LPARAM)-1);
@@ -719,7 +738,7 @@ void SmartBrowser::GetControlValue(HWND hwndControl)
 
    case eButton:
    {
-      if (!fNinch)
+      if(!fNinch)
       {
          if (SUCCEEDED(VariantChangeType(&varResult, &var, 0, VT_BOOL)))
          {
@@ -1079,7 +1098,6 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
          return FALSE;
       }
 
-      //IDispatch *pdisp = psb->m_pdisp;
       switch (code)
       {
       case EN_KILLFOCUS:
@@ -1164,6 +1182,28 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
          {
             psb->GetBaseISel()->GetPTable()->ExportPhysics();
          }
+         else if(dispid == IDC_POINT_COPY_BUTTON)
+         {
+             ISelect *pItem = psb->m_pvsel->ElementAt(0);
+             if((psb->m_pvsel->Size() == 1) && (pItem->GetItemType() == eItemDragPoint))
+             {
+                 DragPoint *pPoint = (DragPoint*)pItem;
+                 pPoint->Copy();
+             }
+         }
+         else if(dispid == IDC_POINT_PASTE_BUTTON)
+         {
+             ISelect *pItem = psb->m_pvsel->ElementAt(0);
+             if((psb->m_pvsel->Size() == 1) && (pItem->GetItemType() == eItemDragPoint))
+             {
+                DragPoint *pPoint = (DragPoint*)pItem;
+                if(pPoint->m_pointCopied)
+                {
+                    pPoint->Paste();
+                    g_pvp->GetActiveTable()->SetDirtyDraw();
+                }
+             }
+         }
          else
          {
             const size_t state = SendMessage((HWND)lParam, BM_GETCHECK, 0, 0);
@@ -1176,8 +1216,8 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
             psb->GetControlValue((HWND)lParam);
          }
          EnterCriticalSection(&psb->m_hPropertyLock);
-         for (int i = 0; i < psb->m_pvsel->Size(); i++)
-            psb->m_pvsel->ElementAt(i)->UpdatePropertyPanes();
+         if (psb->m_pvsel->Size() >= 1)
+            psb->m_pvsel->ElementAt(0)->UpdatePropertyPanes();
          LeaveCriticalSection(&psb->m_hPropertyLock);
 
       }
@@ -1217,8 +1257,8 @@ INT_PTR CALLBACK PropertyProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
          psb->GetControlValue((HWND)lParam);
 
          EnterCriticalSection(&psb->m_hPropertyLock);
-         for (int i = 0; i < psb->m_pvsel->Size(); i++)
-            psb->m_pvsel->ElementAt(i)->UpdatePropertyPanes();
+         if (psb->m_pvsel->Size() >= 1)
+            psb->m_pvsel->ElementAt(0)->UpdatePropertyPanes();
          LeaveCriticalSection(&psb->m_hPropertyLock);
       }
       break;

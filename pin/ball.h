@@ -3,12 +3,11 @@
 #include "pin/collide.h"
 
 
-class BallAnimObject : public AnimObject
+class BallMoverObject : public MoverObject
 {
 public:
-   virtual bool FMover() const { return false; } // We add ourselves to the mover list.  
-   // If we allow the table to do that, we might get added twice, 
-   // if we get created in Init code
+   virtual bool AddToList() const { return false; } // We add ourselves to the mover list.  
+                                                    // If we allow the table to do that, we might get added twice, if we get created in the player Init code
    virtual void UpdateDisplacements(const float dtime);
    virtual void UpdateVelocities();
 
@@ -29,11 +28,11 @@ public:
    virtual void UpdateVelocities();
 
    // From HitObject
-   virtual float HitTest(const Ball * const pball, const float dtime, CollisionEvent& coll);
+   virtual float HitTest(const Ball * const pball, const float dtime, CollisionEvent& coll) const;
    virtual int GetType() const { return eBall; }
    virtual void Collide(CollisionEvent& coll);
-   virtual void CalcHitRect();
-   virtual AnimObject *GetAnimObject() { return &m_ballanim; }
+   virtual void Contact(CollisionEvent& coll, const float dtime) { }
+   virtual void CalcHitBBox();
 
    void Collide3DWall(const Vertex3Ds& hitNormal, float elasticity, const float elastFalloff, const float friction, float scatter_angle);
 
@@ -58,24 +57,24 @@ public:
    Texture *m_pinballEnv;
    Texture *m_pinballDecal;
 
-   VectorVoid* m_vpVolObjs;// vector of triggers we are now inside
+   VectorVoid* m_vpVolObjs;// vector of triggers and kickers we are now inside (stored as IFireEvents* though, as HitObject.m_obj stores it like that!)
 
    CollisionEvent m_coll;  // collision information, may not be a actual hit if something else happens first
 
 #ifdef C_DYNAMIC
-   int m_dynamic;			// used to determine static ball conditions and velocity quenching
-   float m_drsq;			// square of distance moved
+   int m_dynamic;          // used to determine static ball conditions and velocity quenching
+   float m_drsq;           // square of distance moved
 #endif
 
-   BallAnimObject m_ballanim;
+   BallMoverObject m_ballMover;
 
    Vertex3Ds m_pos;
-   float m_defaultZ;   //normal height of the ball //!! remove?
+   float m_defaultZ;       // normal height of the ball //!! remove?
 
    Vertex3Ds m_oldpos[MAX_BALL_TRAIL_POS]; // for the optional ball trails
    unsigned int m_ringcounter_oldpos;
 
-   Vertex3Ds m_vel;      // ball velocity
+   Vertex3Ds m_vel;        // ball velocity
    Vertex3Ds m_oldVel;
 
    float m_radius;
@@ -84,7 +83,7 @@ public:
 
    float m_rcHitRadiusSqr; // extended (by m_vel + magic) squared radius, used in collision detection
 
-   Vertex3Ds m_Event_Pos; // last hit event position (to filter hit 'equal' hit events)
+   Vertex3Ds m_Event_Pos;  // last hit event position (to filter hit 'equal' hit events)
 
    Matrix3 m_orientation;
    Vertex3Ds m_angularmomentum;

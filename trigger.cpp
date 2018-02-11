@@ -227,7 +227,7 @@ void Trigger::SetDefaults(bool fromMouseClick)
 
    hr = GetRegInt("DefaultProps\\Trigger", "Shape", &iTmp);
    if ((hr == S_OK) && fromMouseClick)
-      m_d.m_shape = (enum TriggerShape)iTmp;
+      m_d.m_shape = (TriggerShape)iTmp;
    else
       m_d.m_shape = TriggerWireA;
    hr = GetRegString("DefaultProps\\Trigger", "Surface", &m_d.m_szSurface, MAXTOKEN);
@@ -392,9 +392,7 @@ void Trigger::GetHitShapes(Vector<HitObject> * const pvho)
 
       m_ptriggerhitcircle->m_fEnabled = m_d.m_fEnabled;
       m_ptriggerhitcircle->m_ObjType = eTrigger;
-      m_ptriggerhitcircle->m_pObj = (void*) this;
-
-      m_ptriggerhitcircle->m_pfe = NULL;
+      m_ptriggerhitcircle->m_obj = (IFireEvents*) this;
 
       m_ptriggerhitcircle->m_ptrigger = this;
 
@@ -413,11 +411,11 @@ void Trigger::GetHitShapesDebug(Vector<HitObject> * const pvho)
    case TriggerButton:
    case TriggerStar:
    {
-      HitObject * const pho = CreateCircularHitPoly(m_d.m_vCenter.x, m_d.m_vCenter.y, height + 10, m_d.m_radius, 32);
-      pho->m_ObjType = eTrigger;
-      pho->m_pObj = (void*)this;
+      Hit3DPoly * const pcircle = new Hit3DPoly(m_d.m_vCenter.x, m_d.m_vCenter.y, height + 10, m_d.m_radius, 32);
+      pcircle->m_ObjType = eTrigger;
+      pcircle->m_obj = (IFireEvents*) this;
 
-      pvho->AddElement(pho);
+      pvho->AddElement(pcircle);
       break;
    }
 
@@ -442,7 +440,7 @@ void Trigger::GetHitShapesDebug(Vector<HitObject> * const pvho)
 
       Hit3DPoly * const ph3dp = new Hit3DPoly(rgv3d, cvertex);
       ph3dp->m_ObjType = eTrigger;
-      ph3dp->m_pObj = (void*) this;
+      ph3dp->m_obj = (IFireEvents*) this;
 
       pvho->AddElement(ph3dp);
       //ph3dp->m_fEnabled = false;	//!! disable hit process on polygon body, only trigger edges 
@@ -481,7 +479,7 @@ void Trigger::CurvesToShapes(Vector<HitObject> * const pvho)
 #if 1	
    Hit3DPoly * const ph3dpoly = new Hit3DPoly(rgv3D, count);
    ph3dpoly->m_ObjType = eTrigger;
-   ph3dpoly->m_pObj = (void*) this;
+   ph3dpoly->m_obj = (IFireEvents*) this;
 
    pvho->AddElement(ph3dpoly);
 #else
@@ -497,10 +495,10 @@ void Trigger::AddLine(Vector<HitObject> * const pvho, const RenderVertex &pv1, c
 
    plineseg->m_ptrigger = this;
    plineseg->m_ObjType = eTrigger;
-   plineseg->m_pObj = (void*) this;
+   plineseg->m_obj = (IFireEvents*) this;
 
-   plineseg->m_rcHitRect.zlow = height;
-   plineseg->m_rcHitRect.zhigh = height + max(m_d.m_hit_height - 8.0f, 0.f); //adjust for same hit height as circular
+   plineseg->m_hitBBox.zlow = height;
+   plineseg->m_hitBBox.zhigh = height + max(m_d.m_hit_height - 8.0f, 0.f); //adjust for same hit height as circular
 
    plineseg->v1.x = pv1.x;
    plineseg->v1.y = pv1.y;
@@ -1220,6 +1218,7 @@ STDMETHODIMP Trigger::put_Radius(float newVal)
 STDMETHODIMP Trigger::get_X(float *pVal)
 {
    *pVal = m_d.m_vCenter.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }
@@ -1330,7 +1329,7 @@ STDMETHODIMP Trigger::BallCntOver(int *pVal)
       {
          Ball * const pball = g_pplayer->m_vball[i];
 
-         if (pball->m_vpVolObjs && pball->m_vpVolObjs->IndexOf(this) >= 0)
+         if (pball->m_vpVolObjs && pball->m_vpVolObjs->IndexOf((IFireEvents*)this) >= 0) // cast to IFireEvents necessary, as it is stored like this in HitObject.m_obj
          {
             g_pplayer->m_pactiveball = pball;	// set active ball for scriptor
             ++cnt;
@@ -1353,7 +1352,7 @@ STDMETHODIMP Trigger::DestroyBall(int *pVal)
          Ball * const pball = g_pplayer->m_vball[i];
 
          int j;
-         if (pball->m_vpVolObjs && (j = pball->m_vpVolObjs->IndexOf(this)) >= 0)
+         if (pball->m_vpVolObjs && (j = pball->m_vpVolObjs->IndexOf((IFireEvents*)this)) >= 0) // cast to IFireEvents necessary, as it is stored like this in HitObject.m_obj
          {
             ++cnt;
             pball->m_vpVolObjs->RemoveElementAt(j);

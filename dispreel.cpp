@@ -4,6 +4,8 @@ DispReel::DispReel()
 {
    memset(m_d.m_szImage, 0, MAXTOKEN);
    memset(m_d.m_szSound, 0, MAXTOKEN);
+
+   m_dispreelanim.m_pDispReel = this;
 }
 
 DispReel::~DispReel()
@@ -23,8 +25,6 @@ HRESULT DispReel::Init(PinTable *ptable, float x, float y, bool fromMouseClick)
    m_d.m_v1.y = y;
    m_d.m_v2.x = x + getBoxWidth();
    m_d.m_v2.y = y + getBoxHeight();
-
-   //m_preelframe = NULL;
 
    return InitVBA(fTrue, 0, NULL);
 }
@@ -231,16 +231,8 @@ void DispReel::GetTimers(Vector<HitTimer> * const pvht)
 }
 
 
-// This function is supposed to return the hit shapes for the object but since it is
-// off screen we use it to register the screen updater in the game engine.. this means
-// that Check3d (and Draw3d) are called in the updater class.
-//
 void DispReel::GetHitShapes(Vector<HitObject> * const pvho)
 {
-   m_dispreelanim.m_pDispReel = this;
-
-   // HACK - adding object directly to screen update list.  Someday make hit objects and screenupdaters seperate objects
-   g_pplayer->m_vanimate.AddElement(&m_dispreelanim);
 }
 
 void DispReel::GetHitShapesDebug(Vector<HitObject> * const pvho)
@@ -288,12 +280,15 @@ void DispReel::PostRenderStatic(RenderDevice* pd3dDevice)
    pd3dDevice->DMDShader->SetTexture("Texture0", pin);
    
    pd3dDevice->DMDShader->Begin(0);
-   for (int r = 0; r < m_d.m_reelcount; ++r) //!! optimize by doing all in one
+
+   // set up all the reel positions within the object frame
+   const float renderspacingx = max(0.0f, m_d.m_reelspacing / (float)EDITOR_BG_WIDTH);
+   const float renderspacingy = max(0.0f, m_d.m_reelspacing / (float)EDITOR_BG_HEIGHT);
+         float x1 = m_d.m_v1.x / (float)EDITOR_BG_WIDTH  + renderspacingx;
+   const float y1 = m_d.m_v1.y / (float)EDITOR_BG_HEIGHT + renderspacingy;
+
+   for (int r = 0; r < m_d.m_reelcount; ++r) //!! optimize by doing all draws in a single one
    {
-       const float posx = ReelInfo[r].position.left;
-       const float posy = ReelInfo[r].position.top;
-       const float width = ReelInfo[r].position.right;
-       const float height = ReelInfo[r].position.bottom;
        const float u0 = m_digitTexCoords[ReelInfo[r].currentValue].u_min;
        const float v0 = m_digitTexCoords[ReelInfo[r].currentValue].v_min;
        const float u1 = m_digitTexCoords[ReelInfo[r].currentValue].u_max;
@@ -309,11 +304,14 @@ void DispReel::PostRenderStatic(RenderDevice* pd3dDevice)
 
        for (unsigned int i = 0; i < 4; ++i)
        {
-           Verts[i * 5] = (Verts[i * 5] * width + posx)*2.0f - 1.0f;
-           Verts[i * 5 + 1] = 1.0f - (Verts[i * 5 + 1] * height + posy)*2.0f;
+           Verts[i * 5] = (Verts[i * 5] * m_renderwidth + x1)*2.0f - 1.0f;
+           Verts[i * 5 + 1] = 1.0f - (Verts[i * 5 + 1] * m_renderheight + y1)*2.0f;
        }
 
        pd3dDevice->DrawTexturedQuad((Vertex3D_TexelOnly*)Verts);
+
+       // move to the next reel
+       x1 += renderspacingx + m_renderwidth;
    }
    pd3dDevice->DMDShader->End();
 
@@ -326,34 +324,17 @@ void DispReel::PostRenderStatic(RenderDevice* pd3dDevice)
 
 void DispReel::RenderSetup(RenderDevice* pd3dDevice)
 {
-   Pin3D * const ppin3d = &g_pplayer->m_pin3d;
-
    // get the render sizes of the objects (reels and frame)
    m_renderwidth = max(0.0f, m_d.m_width / (float)EDITOR_BG_WIDTH);
    m_renderheight = max(0.0f, m_d.m_height / (float)EDITOR_BG_HEIGHT);
-   const float m_renderspacingx = max(0.0f, m_d.m_reelspacing / (float)EDITOR_BG_WIDTH);
-   const float m_renderspacingy = max(0.0f, m_d.m_reelspacing / (float)EDITOR_BG_HEIGHT);
-
-   // set up all the reel positions within the object frame
-   const float x0 = m_d.m_v1.x / (float)EDITOR_BG_WIDTH;
-   const float y0 = m_d.m_v1.y / (float)EDITOR_BG_HEIGHT;
-   float x1 = x0 + m_renderspacingx;
 
    for (int i = 0; i < m_d.m_reelcount; ++i)
    {
-      ReelInfo[i].position.left = x1;
-      ReelInfo[i].position.right = m_renderwidth;
-      ReelInfo[i].position.top = y0 + m_renderspacingy;
-      ReelInfo[i].position.bottom = m_renderheight;
-
       ReelInfo[i].currentValue = 0;
       ReelInfo[i].motorPulses = 0;
       ReelInfo[i].motorStepCount = 0;
       ReelInfo[i].motorCalcStep = 0;
       ReelInfo[i].motorOffset = 0;
-
-      // move to the next reel
-      x1 += m_renderspacingx + m_renderwidth;
    }
 
    // get a pointer to the image specified in the object
@@ -362,7 +343,7 @@ void DispReel::RenderSetup(RenderDevice* pd3dDevice)
    if (!pin)
       return;
 
-   int	GridCols, GridRows;
+   int GridCols, GridRows;
 
    // get the number of images per row of the image
    if (m_d.m_fUseImageGrid)
@@ -388,14 +369,14 @@ void DispReel::RenderSetup(RenderDevice* pd3dDevice)
    if (GridCols != 0 && GridRows != 0)
    {
       // get the size of the individual reel digits (if m_digitrange is wrong we can forget the rest)
-      m_reeldigitwidth = (float)pin->m_width / (float)GridCols;
+      m_reeldigitwidth  = (float)pin->m_width  / (float)GridCols;
       m_reeldigitheight = (float)pin->m_height / (float)GridRows;
    }
    else
       ShowError("DispReel: GridCols/GridRows are zero!");
 
-   const float ratiox = (float)m_reeldigitwidth / (float)pin->m_width;
-   const float ratioy = (float)m_reeldigitheight / (float)pin->m_height;
+   const float ratiox = m_reeldigitwidth  / (float)pin->m_width;
+   const float ratioy = m_reeldigitheight / (float)pin->m_height;
 
    int gr = 0;
    int gc = 0;
@@ -434,13 +415,8 @@ void DispReel::RenderStatic(RenderDevice* pd3dDevice)
 // This function is called during Animate().  It basically check to see if the update
 // interval has expired and if so handles the rolling of the reels according to the
 // number of motor steps queued up for each reel
-//
-// if a screen update is required it returns true..
-//
 void DispReel::Animate()
 {
-   OLECHAR mySound[256];
-
    if (g_pplayer->m_time_msec >= m_timenextupdate)
    {
       m_timenextupdate = g_pplayer->m_time_msec + m_d.m_updateinterval;
@@ -449,12 +425,12 @@ void DispReel::Animate()
       const int OverflowValue = m_d.m_digitrange;
       const int AdjustValue = OverflowValue + 1;
 
-      const float step = (float)m_reeldigitheight / m_d.m_motorsteps;
+      const float step = m_reeldigitheight / m_d.m_motorsteps;
 
       // start at the last reel and work forwards (right to left)
       for (int i = m_d.m_reelcount - 1; i >= 0; i--)
       {
-         // if the motor has stoped, and there are still motor steps then start another one
+         // if the motor has stopped, and there are still motor steps then start another one
          if ((ReelInfo[i].motorPulses != 0) && (ReelInfo[i].motorStepCount == 0))
          {
             // get the number of steps (or increments) needed to move the reel
@@ -465,6 +441,7 @@ void DispReel::Animate()
             // play the sound (if any) for each click of the reel
             if (m_d.m_szSound[0] != 0)
             {
+               OLECHAR mySound[512];
                MultiByteToWideChar(CP_ACP, 0, m_d.m_szSound, -1, mySound, 32);
                m_ptable->PlaySound(mySound, 0, 1.0f, 0.f, 0.f, 0, VARIANT_FALSE, VARIANT_TRUE, 0.f);
             }
@@ -764,13 +741,13 @@ STDMETHODIMP DispReel::put_Reels(float newVal)
 {
    STARTUNDO
 
-      m_d.m_reelcount = min(max(1, (int)newVal), MAX_REELS); // must have at least 1 reel and a max of MAX_REELS
+   m_d.m_reelcount = min(max(1, (int)newVal), MAX_REELS); // must have at least 1 reel and a max of MAX_REELS
    m_d.m_v2.x = m_d.m_v1.x + getBoxWidth();
    m_d.m_v2.y = m_d.m_v1.y + getBoxHeight();
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Width(float *pVal)
@@ -784,12 +761,12 @@ STDMETHODIMP DispReel::put_Width(float newVal)
 {
    STARTUNDO
 
-      m_d.m_width = max(0.0f, newVal);
+   m_d.m_width = max(0.0f, newVal);
    m_d.m_v2.x = m_d.m_v1.x + getBoxWidth();
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Height(float *pVal)
@@ -803,17 +780,18 @@ STDMETHODIMP DispReel::put_Height(float newVal)
 {
    STARTUNDO
 
-      m_d.m_height = max(0.0f, newVal);
+   m_d.m_height = max(0.0f, newVal);
    m_d.m_v2.y = m_d.m_v1.y + getBoxHeight();
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_X(float *pVal)
 {
    *pVal = m_d.m_v1.x;
+   g_pvp->SetStatusBarUnitInfo("");
 
    return S_OK;
 }
@@ -822,13 +800,13 @@ STDMETHODIMP DispReel::put_X(float newVal)
 {
    STARTUNDO
 
-      const float delta = newVal - m_d.m_v1.x;
+   const float delta = newVal - m_d.m_v1.x;
    m_d.m_v1.x += delta;
    m_d.m_v2.x = m_d.m_v1.x + getBoxWidth();
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Y(float *pVal)
@@ -842,13 +820,13 @@ STDMETHODIMP DispReel::put_Y(float newVal)
 {
    STARTUNDO
 
-      const float delta = newVal - m_d.m_v1.y;
+   const float delta = newVal - m_d.m_v1.y;
    m_d.m_v1.y += delta;
    m_d.m_v2.y = m_d.m_v1.y + getBoxHeight();
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_IsTransparent(VARIANT_BOOL *pVal)
@@ -861,10 +839,10 @@ STDMETHODIMP DispReel::get_IsTransparent(VARIANT_BOOL *pVal)
 STDMETHODIMP DispReel::put_IsTransparent(VARIANT_BOOL newVal)
 {
    STARTUNDO
-      m_d.m_fTransparent = VBTOF(newVal);
+   m_d.m_fTransparent = VBTOF(newVal);
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Image(BSTR *pVal)
@@ -906,13 +884,13 @@ STDMETHODIMP DispReel::put_Spacing(float newVal)
 {
    STARTUNDO
 
-      m_d.m_reelspacing = max(0.0f, newVal);
+   m_d.m_reelspacing = max(0.0f, newVal);
    m_d.m_v2.x = m_d.m_v1.x + getBoxWidth();
    m_d.m_v2.y = m_d.m_v1.y + getBoxHeight();
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Sound(BSTR *pVal)
@@ -943,10 +921,10 @@ STDMETHODIMP DispReel::get_Steps(float *pVal)
 STDMETHODIMP DispReel::put_Steps(float newVal)
 {
    STARTUNDO
-      m_d.m_motorsteps = max(1.0f, floorf(newVal));	// must have at least 1 step
+   m_d.m_motorsteps = max(1.0f, floorf(newVal));	// must have at least 1 step
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Range(float *pVal)
@@ -960,12 +938,12 @@ STDMETHODIMP DispReel::put_Range(float newVal)
 {
    STARTUNDO
 
-      m_d.m_digitrange = (int)max(0.0f, floorf(newVal));        // must have at least 1 digit (0 is a digit)
+   m_d.m_digitrange = (int)max(0.0f, floorf(newVal));        // must have at least 1 digit (0 is a digit)
    if (m_d.m_digitrange > 512 - 1) m_d.m_digitrange = 512 - 1;  // and a max of 512 (0->511) //!! 512 requested by highrise
 
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_UpdateInterval(long *pVal)
@@ -998,10 +976,10 @@ STDMETHODIMP DispReel::get_UseImageGrid(VARIANT_BOOL *pVal)
 STDMETHODIMP DispReel::put_UseImageGrid(VARIANT_BOOL newVal)
 {
    STARTUNDO
-      m_d.m_fUseImageGrid = VBTOF(newVal);
+   m_d.m_fUseImageGrid = VBTOF(newVal);
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_Visible(VARIANT_BOOL *pVal)
@@ -1014,10 +992,10 @@ STDMETHODIMP DispReel::get_Visible(VARIANT_BOOL *pVal)
 STDMETHODIMP DispReel::put_Visible(VARIANT_BOOL newVal)
 {
    STARTUNDO
-      m_d.m_fVisible = VBTOF(newVal);
+   m_d.m_fVisible = VBTOF(newVal);
    STOPUNDO
 
-      return S_OK;
+   return S_OK;
 }
 
 STDMETHODIMP DispReel::get_ImagesPerGridRow(long *pVal)

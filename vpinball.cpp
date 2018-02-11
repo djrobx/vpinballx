@@ -61,7 +61,7 @@ static TBBUTTON const g_tbbuttonMain[] = {
    {14, ID_TABLE_MAGNIFY, TBSTATE_ENABLED, TBSTYLE_CHECKGROUP, 0, 0, 0, 0, 0, 0, IDS_TB_MAGNIFY, 0},
    {0, IDC_SELECT, TBSTATE_ENABLED, TBSTYLE_CHECKGROUP | TBSTYLE_DROPDOWN, 0, 0, 0, 0, 0, 0, IDS_TB_SELECT, 1},
    {13, ID_EDIT_PROPERTIES, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0, 0, 0, 0, 0, IDS_TB_PROPERTIES, 2},
-   {18, ID_EDIT_SCRIPT, TBSTATE_ENABLED, TBSTYLE_BUTTON, 0, 0, 0, 0, 0, 0, IDS_TB_SCRIPT, 3},
+   {18, ID_EDIT_SCRIPT, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0, 0, 0, 0, 0, IDS_TB_SCRIPT, 3},
    {19, ID_EDIT_BACKGLASSVIEW, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0, 0, 0, 0, 0, IDS_TB_BACKGLASS, 4},
    {2, ID_TABLE_PLAY, TBSTATE_ENABLED, TBSTYLE_BUTTON, 0, 0, 0, 0, 0, 0, IDS_TB_PLAY, 5},
 };
@@ -106,7 +106,7 @@ static TBBUTTON const g_tbbuttonMain[] = {
    { 14, ID_TABLE_MAGNIFY, TBSTATE_ENABLED, TBSTYLE_CHECKGROUP, 0, 0, IDS_TB_MAGNIFY, 0 },
    { 0, IDC_SELECT, TBSTATE_ENABLED, TBSTYLE_CHECKGROUP | TBSTYLE_DROPDOWN, 0, 0, IDS_TB_SELECT, 1 },
    { 13, ID_EDIT_PROPERTIES, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0, IDS_TB_PROPERTIES, 2 },
-   { 18, ID_EDIT_SCRIPT, TBSTATE_ENABLED, TBSTYLE_BUTTON, 0, 0, IDS_TB_SCRIPT, 3 },
+   { 18, ID_EDIT_SCRIPT, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0, IDS_TB_SCRIPT, 3 },
    { 19, ID_EDIT_BACKGLASSVIEW, TBSTATE_ENABLED, TBSTYLE_CHECK, 0, 0, IDS_TB_BACKGLASS, 4 },
    { 2, ID_TABLE_PLAY, TBSTATE_ENABLED, TBSTYLE_BUTTON, 0, 0, IDS_TB_PLAY, 5 },
 };
@@ -377,14 +377,14 @@ void VPinball::Init()
 
    CreateMDIClient();								// Create MDI Child
 
-   int foo[5] = { 120, 240, 400, 600, 800 };
+   int foo[6] = { 120, 240, 400, 600, 800, 1400};
 
    m_hwndStatusBar = CreateStatusWindow(WS_CHILD | WS_VISIBLE,
       "",
       m_hwnd,
       1);				// Create Status Line at the bottom
 
-   ::SendMessage(m_hwndStatusBar, SB_SETPARTS, 5, (size_t)foo);	// Initialize Status bar with 5 empty cells
+   ::SendMessage(m_hwndStatusBar, SB_SETPARTS, 6, (size_t)foo);	// Initialize Status bar with 6 empty cells
 
    InitRegValues();									// get default values from registry
 
@@ -565,6 +565,9 @@ void VPinball::InitRegValues()
       m_szRecentTableList[i][0] = 0x00;
       GetRegString("RecentDir", szRegName, m_szRecentTableList[i], MAX_PATH);
    }
+   hr = GetRegValue("Editor", "Units", &type, &g_pvp->m_convertToUnit, 4);
+   if(FAILED(hr))
+       g_pvp->m_convertToUnit = 0;
 }
 
 ///<summary>
@@ -760,6 +763,37 @@ void VPinball::SetStatusBarElementInfo(const char *info)
    SendMessage(m_hwndStatusBar, SB_SETTEXT, 4 | 0, (size_t)info);
 }
 
+void VPinball::SetStatusBarUnitInfo(const char *info)
+{
+    char textBuf[256] = { 0 };
+
+    if (strlen(info) > 0)
+    {
+       strcpy_s(textBuf, info);
+       switch (m_convertToUnit)
+       {
+       case 0:
+       {
+          strcat_s(textBuf, " (inch)");
+          break;
+       }
+       case 1:
+       {
+          strcat_s(textBuf, " (mm)");
+          break;
+       }
+       case 2:
+       {
+          strcat_s(textBuf, " (VPUnits)");
+          break;
+       }
+       default:
+          break;
+       }
+    }
+    SendMessage(m_hwndStatusBar, SB_SETTEXT, 5 | 0, (size_t)textBuf);
+}
+
 void VPinball::SetPosCur(float x, float y)
 {
    char szT[256];
@@ -779,6 +813,22 @@ void VPinball::SetObjectPosCur(float x, float y)
 void VPinball::ClearObjectPosCur()
 {
    SendMessage(m_hwndStatusBar, SB_SETTEXT, 1 | 0, (size_t)"");
+}
+
+float VPinball::ConvertToUnit(float value)
+{
+    switch (m_convertToUnit)
+    {
+        case 0:
+        return vpUnitsToInches(value);
+
+        case 1:
+        return vpUnitsToMillimeters(value);
+
+        case 2:
+        return value;
+    }
+    return 0;
 }
 
 void VPinball::SetPropSel(VectorProtected<ISelect> *pvsel)
@@ -871,7 +921,11 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
          if (ptCur->CheckPermissions(DISABLE_SCRIPT_EDITING))
             ShowPermissionError();
          else
-            ptCur->m_pcv->SetVisible(fTrue);
+         {
+            ptCur->m_pcv->SetVisible(!ptCur->m_pcv->m_visible);
+
+            SendMessage(m_hwndToolbarMain, TB_CHECKBUTTON, ID_EDIT_SCRIPT, MAKELONG(ptCur->m_pcv->m_visible, 0));
+         }
       }
       break;
    }
@@ -1264,15 +1318,25 @@ void VPinball::ParseCommand(size_t code, HWND hwnd, size_t notify)
          if (ptCur->CheckPermissions(DISABLE_CUTCOPYPASTE))
             ShowPermissionError();
          else
-            ptCur->Copy();
+         {
+             POINT ptCursor;
+             GetCursorPos(&ptCursor);
+             ::ScreenToClient(ptCur->m_hwnd, &ptCursor);
+             ptCur->Copy(ptCursor.x, ptCursor.y);
+         }
       }
       break;
    }
    case IDC_PASTE:
    {
       ptCur = GetActiveTable();
-      if (ptCur)
-         ptCur->Paste(fFalse, 0, 0);
+      if(ptCur)
+      {
+          POINT ptCursor;
+          GetCursorPos(&ptCursor);
+          ::ScreenToClient(ptCur->m_hwnd, &ptCursor);
+          ptCur->Paste(fFalse, ptCursor.x, ptCursor.y);
+      }
       break;
    }
    case IDC_PASTEAT:
@@ -1772,9 +1836,9 @@ void VPinball::LoadFileName(char *szFileName)
    else
    {
       ppt->InitPostLoad(this);
-      
+
 	  TitleFromFilename(szFileName, ppt->m_szTitle);
-      
+
 	  ppt->SetCaption(ppt->m_szTitle);
 
 	  // auto-import POV settings if exist...
@@ -1901,6 +1965,8 @@ void VPinball::SetEnableMenuItems()
    // is there a valid table??
    if (ptCur)
    {
+      CheckMenuItem(hmenu, ID_EDIT_SCRIPT, MF_BYCOMMAND | (ptCur->m_pcv->m_visible ? MF_CHECKED : MF_UNCHECKED));
+
       EnableMenuItem(hmenu, IDM_CLOSE, MF_BYCOMMAND | MF_ENABLED);
       EnableMenuItem(hmenu, ID_EDIT_UNDO, MF_BYCOMMAND | MF_ENABLED);
       EnableMenuItem(hmenu, ID_EDIT_BACKGLASSVIEW, MF_BYCOMMAND | MF_ENABLED);
