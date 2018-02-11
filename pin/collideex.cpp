@@ -127,6 +127,7 @@ HitGate::HitGate(Gate * const pgate, const float height)
     m_gateMover.m_angle = m_gateMover.m_angleMin;
     m_gateMover.m_anglespeed = 0.0f;
     m_gateMover.m_damping = powf(pgate->m_d.m_damping, (float)PHYS_FACTOR); //0.996f;
+    m_gateMover.m_gravityfactor = pgate->m_d.m_gravityfactor;
 
     m_gateMover.m_pgate = pgate;
     m_gateMover.m_fOpen = false;
@@ -159,9 +160,6 @@ void HitGate::Collide(CollisionEvent& coll)
    const Vertex3Ds& hitnormal = coll.m_hitnormal;
    
    const float dot = coll.m_hitnormal.Dot(coll.m_ball->m_vel);
-
-   if (!coll.m_hitflag && !m_twoWay)
-      return; //hit from back doesn't count if not two-way
    const float h = m_pgate->m_d.m_height*0.5f;
 
    //linear speed = ball speed
@@ -172,9 +170,14 @@ void HitGate::Collide(CollisionEvent& coll)
       speed /= h;
 
   m_gateMover.m_anglespeed = speed;
+  if (!coll.m_hitflag && !m_twoWay)
+  {
+	  m_gateMover.m_anglespeed /= 8.0f; // Give a little bounce-back.
+	  return;	//hit from back doesn't count if not two-way
+  }
 
    // We encoded which side of the spinner the ball hit
-   if (!coll.m_hitflag && m_twoWay)
+   if (coll.m_hitflag && m_twoWay)
        m_gateMover.m_anglespeed = -m_gateMover.m_anglespeed;
 
    FireHitEvent(pball);
@@ -263,7 +266,7 @@ void GateMoverObject::UpdateVelocities()
       }
       if (fabsf(m_anglespeed) != 0.0f && m_angle != m_angleMin)
       {
-         m_anglespeed -= sinf(m_angle) * (float)(0.0025 * PHYS_FACTOR); // Center of gravity towards bottom of object, makes it stop vertical
+         m_anglespeed -= sinf(m_angle) * (float)((m_gravityfactor / 100.0f) * PHYS_FACTOR); // Center of gravity towards bottom of object, makes it stop vertical
          m_anglespeed *= m_damping;
       }
    }
